@@ -402,9 +402,22 @@ def build_subscribers(net: Network) -> list[dict]:
     return rows
 
 
+def _write_text(path: Path, text: str) -> None:
+    """Write with explicit LF endings.
+
+    Path.write_text uses the platform default, so the same seed produced CRLF
+    files on Windows and LF on Linux. That is not cosmetic: it changes
+    tokenisation, and with it the entities and edges extracted, which made the
+    demo assets -- and every analytic conclusion drawn from them -- differ by
+    operating system.
+    """
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def _write_csv(path: Path, rows: list[dict]) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -417,7 +430,7 @@ def main() -> None:
     net = build_network(rng)
 
     for filename, text in render_reports(net, rng):
-        (OUTPUT_DIR / filename).write_text(text, encoding="utf-8")
+        _write_text(OUTPUT_DIR / filename, text)
 
     _write_csv(OUTPUT_DIR / "transactions.csv", build_transactions(net, rng))
     _write_csv(OUTPUT_DIR / "call_records.csv", build_calls(net, rng))
@@ -439,9 +452,7 @@ def main() -> None:
             "components_after_kingpin_removal": 4,
         },
     }
-    (OUTPUT_DIR / "ground_truth.json").write_text(
-        json.dumps(ground_truth, indent=2), encoding="utf-8"
-    )
+    _write_text(OUTPUT_DIR / "ground_truth.json", json.dumps(ground_truth, indent=2))
 
     print(f"Wrote demo assets to {OUTPUT_DIR}")
 

@@ -115,6 +115,32 @@ def _load_nlp() -> Any:
     return None
 
 
+def _gazetteer_candidates(
+    text: str, gazetteer: dict[str, str]
+) -> list[tuple[int, int, str, str, int]]:
+    """Match names the case already knows about.
+
+    Once a report has established that "Bhai" is Salim More, later reports name
+    him with no alias cue and no capitalised give-away, and the statistical
+    model simply does not see him. Carrying known surfaces forward is how an
+    analyst reads a case file too: you recognise the name because you met it in
+    the last document.
+    """
+    found: list[tuple[int, int, str, str, int]] = []
+    if not gazetteer:
+        return found
+
+    # Longest first, so "Salim More" wins over a bare "Salim".
+    for surface in sorted(gazetteer, key=len, reverse=True):
+        if len(surface) < 3:
+            continue
+        for match in re.finditer(rf"\b{re.escape(surface)}\b", text):
+            found.append(
+                (match.start(), match.end(), gazetteer[surface], match.group(0), _RULE_PRIORITY)
+            )
+    return found
+
+
 def _rule_candidates(text: str) -> list[tuple[int, int, str, str, int]]:
     """(start, end, entity_type, surface, priority) from regex and lexicons."""
     found: list[tuple[int, int, str, str, int]] = []
@@ -210,12 +236,22 @@ def _drop_overlaps(
     return sorted(accepted, key=lambda c: c[0])
 
 
-def extract_entities(text: str) -> list[ExtractedEntity]:
-    """Return every entity span in text, de-overlapped and in document order."""
+def extract_entities(
+    text: str, gazetteer: dict[str, str] | None = None
+) -> list[ExtractedEntity]:
+    """Return every entity span in text, de-overlapped and in document order.
+
+    ``gazetteer`` maps a known surface form to its entity type, letting entities
+    established by earlier documents in the same case be recognised here.
+    """
     if not text:
         return []
 
-    candidates = _rule_candidates(text) + _model_candidates(text)
+    candidates = (
+        _rule_candidates(text)
+        + _gazetteer_candidates(text, gazetteer or {})
+        + _model_candidates(text)
+    )
     return [
         ExtractedEntity(text=surface, entity_type=entity_type, start=start, end=end)
         for start, end, entity_type, surface, _ in _drop_overlaps(candidates)

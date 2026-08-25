@@ -83,23 +83,47 @@ class ExtractedRelation:
     evidence: list[dict] = field(default_factory=list)
 
 
+def _clip_to_lines(start: int, text: str) -> list[tuple[int, int, str]]:
+    """Break a span at newlines, returning absolute (start, end, text) pieces."""
+    pieces: list[tuple[int, int, str]] = []
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped:
+            lead = len(line) - len(line.lstrip())
+            begin = start + offset + lead
+            pieces.append((begin, begin + len(stripped), stripped))
+        offset += len(line)
+    return pieces
+
+
 def _sentences(text: str) -> list[tuple[int, int, str]]:
-    """Split into (start, end, sentence_text), preferring the spaCy segmenter."""
+    """Split into (start, end, sentence_text), never crossing a line break.
+
+    Report lines are one statement each, but the segmenter breaks on "Rs." and
+    then runs the remainder of the line into the next one. That silently paired
+    people from unrelated statements, inventing edges the reports never claimed.
+    A relation must not be inferred across a line boundary.
+    """
     nlp = _load_nlp()
     if nlp is not None:
         doc = nlp(text)
-        spans = [(s.start_char, s.end_char, s.text) for s in doc.sents]
+        spans = [
+            piece
+            for sent in doc.sents
+            for piece in _clip_to_lines(sent.start_char, sent.text)
+        ]
         if spans:
             return spans
 
     spans = []
     cursor = 0
     for chunk in _SENTENCE_SPLIT.split(text):
-        start = text.find(chunk, cursor)
-        if start == -1:
+        begin = text.find(chunk, cursor)
+        if begin == -1:
             continue
-        spans.append((start, start + len(chunk), chunk))
-        cursor = start + len(chunk)
+        spans.extend(_clip_to_lines(begin, chunk))
+        cursor = begin + len(chunk)
     return spans
 
 

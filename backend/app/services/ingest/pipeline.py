@@ -84,7 +84,7 @@ def _ingest_report(db: Session, doc: models.Document, raw: bytes) -> None:
     doc.raw_text = text
     db.flush()
 
-    entities = extract_entities(text)
+    entities = extract_entities(text, gazetteer=_case_gazetteer(db, doc.case_id))
     if not entities:
         logger.info("No entities extracted from document %s", doc.id)
         return
@@ -132,6 +132,27 @@ def _ingest_report(db: Session, doc: models.Document, raw: bytes) -> None:
             evidence=relation.evidence,
         )
     db.flush()
+
+
+def _case_gazetteer(db: Session, case_id: int) -> dict[str, str]:
+    """Known surface forms for this case, mapped to their entity type.
+
+    Only names and organisations. Identifiers already have exact patterns, and
+    feeding them back in would add nothing.
+    """
+    stored = db.scalars(
+        select(models.Entity).where(
+            models.Entity.case_id == case_id,
+            models.Entity.entity_type.in_(["PERSON", "ORG"]),
+        )
+    ).all()
+
+    gazetteer: dict[str, str] = {}
+    for entity in stored:
+        for surface in [entity.canonical_name, *(entity.aliases or [])]:
+            if surface and len(surface) >= 3:
+                gazetteer[surface] = entity.entity_type
+    return gazetteer
 
 
 def _upsert_entity(

@@ -67,3 +67,26 @@ def test_repeated_pairs_accumulate_weight():
         if {r.source.text, r.target.text} == {"Ramesh Kulkarni", "Suresh Pawar"}
     )
     assert pair.weight == 3
+
+
+def test_sentences_never_cross_a_line_break():
+    """Each report line is one statement; pairing across lines invents edges.
+
+    The segmenter breaks on "Rs." and used to run the remainder of a line into
+    the next, which paired people from unrelated statements and inflated the
+    graph well past what the reports actually claimed.
+    """
+    from app.services.extraction.relations import _sentences
+
+    report = (
+        "Bank records show Bhai remitted Rs. 301,000 to Rajendra Qureshi on 2026-04-18.\n"
+        "Balwant Pawar and Imran Sheikh were seen together outside Nhava Sheva.\n"
+    )
+    sentences = _sentences(report)
+
+    assert len(sentences) == 2
+    assert not any("\n" in text for _, _, text in sentences)
+
+    rels = _relations(report)
+    assert ("Bhai", "Balwant Pawar") not in rels
+    assert ("Rajendra Qureshi", "Imran Sheikh") not in rels

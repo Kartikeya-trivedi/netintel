@@ -114,3 +114,29 @@ def test_identifiers_never_merge_fuzzily():
         ]
     )
     assert len(merged) == 2
+
+
+def test_gazetteer_recognises_a_name_the_model_misses():
+    """Bare aliases carry no cue and no capitalisation the model can use.
+
+    "Bank records show Bhai remitted ..." names the kingpin with nothing for
+    statistical NER to latch onto. Carrying known surfaces forward from earlier
+    documents is what keeps him in the graph at all.
+    """
+    line = "Bank records show Bhai remitted Rs. 301,000 to Rajendra Qureshi on 2026-04-18."
+
+    without = {e.text for e in extract_entities(line)}
+    assert "Bhai" not in without
+
+    with_gazetteer = {
+        e.text for e in extract_entities(line, gazetteer={"Bhai": "PERSON"})
+    }
+    assert "Bhai" in with_gazetteer
+    assert "Rajendra Qureshi" in with_gazetteer
+
+
+def test_gazetteer_prefers_the_longer_known_name():
+    found = extract_entities(
+        "Salim More was present.", gazetteer={"Salim More": "PERSON", "Salim": "PERSON"}
+    )
+    assert [e.text for e in found if e.entity_type == "PERSON"] == ["Salim More"]
