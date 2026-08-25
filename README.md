@@ -150,8 +150,8 @@ carries a `TODO(Phase N)` pointing at the section that specifies it.
 | 1 | Demo data generator, ingestion, parsers | Complete |
 | 2 | NER, relation extraction, entity resolution | Complete |
 | 3 | Graph construction and analytics | Complete |
-| 4 | Graph Explorer and Documents UI | Next |
-| 5 | Anomaly engine, Alerts, Dashboard | Planned |
+| 4 | Graph Explorer and Documents UI | Complete |
+| 5 | Anomaly engine, Alerts, Dashboard | Next |
 | 6 | Entity dossiers, removal simulation, polish | Planned |
 
 The backend pipeline runs end to end today: drop in reports and CSVs, and the

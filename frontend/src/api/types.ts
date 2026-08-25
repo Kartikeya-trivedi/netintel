@@ -79,13 +79,25 @@ export interface GraphNode {
   community_id: number | null
 }
 
+/** Evidence behind an edge.
+ *
+ *  Two shapes reach the client: a sentence lifted from a report, and a rolled-up
+ *  summary of the transaction or call rows that produced a projected edge.
+ *  Both are optional here because the backend stores them as free-form JSON.
+ */
+export interface Evidence {
+  doc_id?: number
+  snippet?: string
+  summary?: string
+}
+
 export interface GraphEdge {
   id: string
   source: string
   target: string
   rel_type: RelType
   weight: number
-  evidence: { doc_id: number; snippet: string }[]
+  evidence: Evidence[]
 }
 
 export interface GraphPayload {

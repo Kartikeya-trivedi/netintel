@@ -1,39 +1,153 @@
 @import 'tailwindcss';
 
-/* NetIntel runs as a dark intelligence console. The palette is deliberately
-   desaturated so that entity-type and severity colours are the only saturated
-   things on screen and therefore read as signal. */
+/* NetIntel reads as a forensic instrument rather than a dashboard: a darkroom
+   ground, hairline rules, monospace numerics, and exactly one signal colour.
+   Entity hues and severity are the only saturated things on screen, so
+   saturation itself carries meaning. */
 @theme {
-  --color-console-950: oklch(0.16 0.012 250);
-  --color-console-900: oklch(0.21 0.014 250);
-  --color-console-800: oklch(0.27 0.016 250);
-  --color-console-700: oklch(0.36 0.018 250);
-  --color-console-400: oklch(0.65 0.02 250);
-  --color-console-200: oklch(0.86 0.012 250);
+  /* Graphite ground, desaturated blue. */
+  --color-ink-1000: oklch(0.145 0.008 250);
+  --color-ink-950: oklch(0.175 0.009 250);
+  --color-ink-900: oklch(0.205 0.010 250);
+  --color-ink-850: oklch(0.235 0.011 250);
+  --color-ink-800: oklch(0.275 0.013 250);
+  --color-ink-700: oklch(0.345 0.015 250);
+  --color-ink-500: oklch(0.545 0.018 250);
+  --color-ink-400: oklch(0.645 0.016 250);
+  --color-ink-200: oklch(0.855 0.010 250);
+  --color-ink-100: oklch(0.945 0.006 250);
 
-  --color-accent: oklch(0.72 0.15 220);
+  /* Sodium-vapour amber: the single signal colour. */
+  --color-signal: oklch(0.795 0.148 74);
+  --color-signal-dim: oklch(0.585 0.105 74);
 
   /* Entity types */
-  --color-entity-person: oklch(0.74 0.15 250);
-  --color-entity-org: oklch(0.76 0.15 160);
-  --color-entity-location: oklch(0.80 0.14 90);
-  --color-entity-phone: oklch(0.74 0.13 310);
-  --color-entity-account: oklch(0.78 0.14 40);
-  --color-entity-vehicle: oklch(0.72 0.10 200);
-  --color-entity-contraband: oklch(0.68 0.18 20);
+  --color-ent-person: oklch(0.745 0.135 250);
+  --color-ent-org: oklch(0.760 0.130 162);
+  --color-ent-location: oklch(0.805 0.130 92);
+  --color-ent-phone: oklch(0.740 0.130 312);
+  --color-ent-account: oklch(0.780 0.140 44);
+  --color-ent-vehicle: oklch(0.735 0.100 205);
+  --color-ent-contraband: oklch(0.660 0.180 22);
 
   /* Severity */
-  --color-severity-low: oklch(0.72 0.08 230);
-  --color-severity-medium: oklch(0.78 0.14 70);
-  --color-severity-high: oklch(0.65 0.20 25);
+  --color-sev-low: oklch(0.720 0.075 232);
+  --color-sev-medium: oklch(0.785 0.140 72);
+  --color-sev-high: oklch(0.645 0.200 25);
+
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-cond: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
 
 body {
-  background-color: var(--color-console-950);
-  color: var(--color-console-200);
-  font-feature-settings: 'cv02', 'cv03', 'cv04';
+  background-color: var(--color-ink-1000);
+  color: var(--color-ink-200);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Instrument-panel legend: tiny, tracked-out, condensed. Used for every label
+   that names a control rather than carrying data. */
+.legend {
+  font-family: var(--font-cond);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-500);
+}
+
+/* Every number on screen is monospace and tabular, so digits line up in
+   columns and a changing value does not reflow its neighbours. */
+.readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'zero' 1;
+}
+
+/* Faint engineering grid behind the canvas, with a vignette so the centre of
+   the graph sits in the brightest part of the frame. */
+.plot-surface {
+  background-color: var(--color-ink-1000);
+  background-image:
+    radial-gradient(ellipse at center, transparent 55%, oklch(0.11 0.008 250 / 0.75) 100%),
+    linear-gradient(to right, oklch(1 0 0 / 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.028) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+}
+
+/* Film grain: breaks up the flat darks so large empty areas read as a surface
+   with depth rather than an absence of pixels. */
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.hairline {
+  border-color: oklch(1 0 0 / 0.09);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.sweep {
+  transform-origin: left;
+  animation: sweep 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-800);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
