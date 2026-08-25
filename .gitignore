@@ -1,0 +1,45 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Databases (local dev artifacts)
+*.db
+*.sqlite
+*.sqlite3
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Generated demo assets (regenerate with `uv run python -m app.seed.generate_demo_data`)
+backend/app/seed/demo_assets/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript composite build output
+frontend/vite.config.d.ts
+frontend/*.tsbuildinfo

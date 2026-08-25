@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+/* NetIntel runs as a dark intelligence console. The palette is deliberately
+   desaturated so that entity-type and severity colours are the only saturated
+   things on screen and therefore read as signal. */
+@theme {
+  --color-console-950: oklch(0.16 0.012 250);
+  --color-console-900: oklch(0.21 0.014 250);
+  --color-console-800: oklch(0.27 0.016 250);
+  --color-console-700: oklch(0.36 0.018 250);
+  --color-console-400: oklch(0.65 0.02 250);
+  --color-console-200: oklch(0.86 0.012 250);
+
+  --color-accent: oklch(0.72 0.15 220);
+
+  /* Entity types */
+  --color-entity-person: oklch(0.74 0.15 250);
+  --color-entity-org: oklch(0.76 0.15 160);
+  --color-entity-location: oklch(0.80 0.14 90);
+  --color-entity-phone: oklch(0.74 0.13 310);
+  --color-entity-account: oklch(0.78 0.14 40);
+  --color-entity-vehicle: oklch(0.72 0.10 200);
+  --color-entity-contraband: oklch(0.68 0.18 20);
+
+  /* Severity */
+  --color-severity-low: oklch(0.72 0.08 230);
+  --color-severity-medium: oklch(0.78 0.14 70);
+  --color-severity-high: oklch(0.65 0.20 25);
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-console-950);
+  color: var(--color-console-200);
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+}
