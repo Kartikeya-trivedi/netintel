@@ -147,12 +147,18 @@ carries a `TODO(Phase N)` pointing at the section that specifies it.
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Scaffold, data model, API skeleton, CI | Complete |
-| 1 | Demo data generator, ingestion, parsers | In progress |
-| 2 | NER, relation extraction, entity resolution | Planned |
-| 3 | Graph construction and analytics | Planned |
-| 4 | Graph Explorer and Documents UI | Planned |
+| 1 | Demo data generator, ingestion, parsers | Complete |
+| 2 | NER, relation extraction, entity resolution | Complete |
+| 3 | Graph construction and analytics | Complete |
+| 4 | Graph Explorer and Documents UI | Next |
 | 5 | Anomaly engine, Alerts, Dashboard | Planned |
 | 6 | Entity dossiers, removal simulation, polish | Planned |
+
+The backend pipeline runs end to end today: drop in reports and CSVs, and the
+system extracts entities, resolves aliases, builds the graph, and ranks key
+players. `backend/tests/test_demo_case.py` asserts every claim the demo makes,
+including that betweenness surfaces the planted coordinator **and** that degree
+centrality does not. Without that second assertion the first proves nothing.
 
 Tests for unimplemented phases are committed as `xfail`, so they flip to passing
 as each phase lands rather than being written after the fact.

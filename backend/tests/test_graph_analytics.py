@@ -62,7 +62,21 @@ def test_louvain_recovers_the_planted_cells(planted_network):
     assert len(communities) >= N_CELLS
 
 
-@pytest.mark.xfail(reason="Phase 3: analytics service not implemented yet", strict=True)
 def test_key_players_endpoint_ranks_by_betweenness(client, case):
     response = client.get(f"/api/cases/{case.id}/graph/metrics?metric=betweenness")
     assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_graph_endpoints_handle_an_empty_case(client, case):
+    """An empty case must render as an empty graph, not a 500."""
+    assert client.get(f"/api/cases/{case.id}/graph").json()["nodes"] == []
+    assert client.get(f"/api/cases/{case.id}/graph/communities").json() == []
+    assert (
+        client.get(f"/api/cases/{case.id}/graph/vulnerabilities").json()["removal_impacts"] == []
+    )
+
+
+def test_unknown_metric_is_rejected(client, case):
+    response = client.get(f"/api/cases/{case.id}/graph/metrics?metric=popularity")
+    assert response.status_code == 422
