@@ -12,6 +12,18 @@
     />
   </head>
   <body>
+    <script>
+      // Runs before the bundle so the page never paints the wrong ground.
+      // Mirrors applyToDocument() in src/lib/theme.ts.
+      try {
+        var t = localStorage.getItem('netintel.theme')
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t)
+        }
+      } catch (e) {
+        /* blocked storage: fall back to prefers-color-scheme */
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

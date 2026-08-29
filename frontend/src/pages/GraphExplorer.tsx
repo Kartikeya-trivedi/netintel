@@ -125,8 +125,8 @@ export default function GraphExplorer() {
   const visibleNodes = (graph.data?.nodes.length ?? 0) - removed.size
 
   return (
-    <div className="grid h-full grid-cols-[248px_minmax(0,1fr)_312px]">
-      <aside className="flex min-h-0 flex-col gap-px overflow-y-auto border-r hairline bg-white/[0.05]">
+    <div className="grid min-h-full grid-cols-1 xl:h-full xl:min-h-0 xl:grid-cols-[248px_minmax(0,1fr)_312px]">
+      <aside className="grid grid-cols-1 gap-px border-b hairline gap-fill sm:grid-cols-2 xl:flex xl:min-h-0 xl:grid-cols-none xl:flex-col xl:overflow-y-auto xl:border-b-0 xl:border-r">
         <div className="bg-ink-1000 p-4">
           <Legend>Size nodes by</Legend>
           <div className="mt-2">
@@ -160,7 +160,7 @@ export default function GraphExplorer() {
           </p>
         </div>
 
-        <div className="flex-1 bg-ink-1000 p-4">
+        <div className="bg-ink-1000 p-4 sm:col-span-2 xl:flex-1">
           <div className="flex items-center justify-between">
             <Legend>Key players</Legend>
             <button
@@ -209,7 +209,7 @@ export default function GraphExplorer() {
         </div>
       </aside>
 
-      <section className="plot-surface relative min-h-0">
+      <section className="plot-surface relative h-[58vh] min-h-80 xl:h-auto xl:min-h-0">
         {graph.loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center">
             <Spinner label="Building network" />
@@ -267,8 +267,8 @@ export default function GraphExplorer() {
         )}
       </section>
 
-      <aside className="flex min-h-0 flex-col border-l hairline">
-        <div className="min-h-0 flex-1 overflow-hidden border-b hairline">
+      <aside className="flex flex-col border-t hairline xl:min-h-0 xl:border-l xl:border-t-0">
+        <div className="min-h-64 flex-1 overflow-hidden border-b hairline xl:min-h-0">
           <EvidencePanel
             caseId={caseId}
             node={selected}

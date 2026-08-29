@@ -55,7 +55,7 @@ export default function HighlightedText({
           onClick={() => onSelect?.(mention.entity_id)}
           title={entityType ?? 'entity'}
           className={`cursor-pointer bg-transparent underline decoration-2 underline-offset-[3px] transition-colors ${decoration} ${
-            active ? 'bg-signal/25 text-ink-100' : 'text-ink-100 hover:bg-white/5'
+            active ? 'bg-signal/25 text-ink-100' : 'text-ink-100 tint-hover'
           }`}
         >
           {text.slice(mention.span_start, mention.span_end)}

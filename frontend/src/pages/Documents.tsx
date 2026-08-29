@@ -103,8 +103,8 @@ export default function Documents() {
   }
 
   return (
-    <div className="grid h-full grid-cols-[300px_minmax(0,1fr)_252px]">
-      <aside className="flex min-h-0 flex-col border-r hairline">
+    <div className="grid min-h-full grid-cols-1 xl:h-full xl:min-h-0 xl:grid-cols-[300px_minmax(0,1fr)_252px]">
+      <aside className="flex flex-col border-b hairline xl:min-h-0 xl:border-b-0 xl:border-r">
         <div className="border-b hairline p-4">
           <Legend>Ingest</Legend>
 
@@ -158,7 +158,7 @@ export default function Documents() {
           {uploadError && <div className="mt-3"><ErrorNote message={uploadError} /></div>}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex-1 xl:min-h-0 xl:overflow-y-auto">
           <div className="px-4 py-3">
             <Legend>Sources · {documents.data?.length ?? 0}</Legend>
           </div>
@@ -197,7 +197,7 @@ export default function Documents() {
         </div>
       </aside>
 
-      <section className="min-h-0 overflow-y-auto">
+      <section className="min-h-64 xl:min-h-0 xl:overflow-y-auto">
         {selectedId === null && (
           <Empty>
             Select a source to read it with every extracted entity marked in place.
@@ -252,7 +252,7 @@ export default function Documents() {
         )}
       </section>
 
-      <aside className="min-h-0 overflow-y-auto border-l hairline">
+      <aside className="border-t hairline xl:min-h-0 xl:overflow-y-auto xl:border-l xl:border-t-0">
         <div className="border-b hairline px-4 py-3">
           <Legend>Entities found · {documentEntities.length}</Legend>
         </div>

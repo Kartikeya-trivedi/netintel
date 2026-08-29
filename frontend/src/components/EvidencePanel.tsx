@@ -122,7 +122,7 @@ function NodeDossier({ caseId, node }: { caseId: number; node: GraphNode }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-px border-b hairline bg-white/[0.06]">
+      <div className="grid grid-cols-2 gap-px border-b hairline gap-fill">
         {ranked.map(([name, score]) => (
           <div key={name} className="bg-ink-950 px-4 py-3">
             <Legend>{METRIC_LABELS[name]}</Legend>
