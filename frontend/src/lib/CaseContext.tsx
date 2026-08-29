@@ -1,4 +1,11 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import { api } from '../api/client'
 import type { Case } from '../api/types'
@@ -11,20 +18,30 @@ interface CaseContextValue {
   loading: boolean
   error: string | null
   reload: () => void
+  /** Bumped by reload(). Views put this in their dependency list so a demo
+   *  reset refetches them too -- the case id does not change across a reset,
+   *  so without it the graph and the counts keep showing the old case. */
+  version: number
 }
 
 const CaseContext = createContext<CaseContextValue | null>(null)
 
 export function CaseProvider({ children }: { children: ReactNode }) {
   const [activeId, setActiveCaseId] = useState<number | null>(null)
-  const { data, error, loading, reload } = useAsync(() => api.listCases(), [])
+  const [version, setVersion] = useState(0)
+  const { data, error, loading, reload: reloadCases } = useAsync(() => api.listCases(), [])
+
+  const reload = useCallback(() => {
+    reloadCases()
+    setVersion((current) => current + 1)
+  }, [reloadCases])
 
   const value = useMemo<CaseContextValue>(() => {
     const cases = data ?? []
     // Fall back to the first case so the console is never empty on load.
     const activeCase = cases.find((c) => c.id === activeId) ?? cases[0] ?? null
-    return { cases, activeCase, setActiveCaseId, loading, error, reload }
-  }, [data, activeId, loading, error, reload])
+    return { cases, activeCase, setActiveCaseId, loading, error, reload, version }
+  }, [data, activeId, loading, error, reload, version])
 
   return <CaseContext.Provider value={value}>{children}</CaseContext.Provider>
 }

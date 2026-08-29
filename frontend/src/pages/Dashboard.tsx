@@ -15,14 +15,14 @@ const SEVERITY_DOT: Record<Severity, string> = {
 /** Case overview: the counts that describe the case, the brokers the graph
  *  ranks highest, and whatever the detection pass has raised. */
 export default function Dashboard() {
-  const { activeCase } = useCase()
+  const { activeCase, version } = useCase()
   const caseId = activeCase?.id ?? null
 
-  const stats = useAsync(() => api.caseStats(caseId!), [caseId], { enabled: caseId !== null })
-  const players = useAsync(() => api.getKeyPlayers(caseId!, 'betweenness', 5), [caseId], {
+  const stats = useAsync(() => api.caseStats(caseId!), [caseId, version], { enabled: caseId !== null })
+  const players = useAsync(() => api.getKeyPlayers(caseId!, 'betweenness', 5), [caseId, version], {
     enabled: caseId !== null,
   })
-  const alerts = useAsync(() => api.listAlerts(caseId!), [caseId], { enabled: caseId !== null })
+  const alerts = useAsync(() => api.listAlerts(caseId!), [caseId, version], { enabled: caseId !== null })
 
   if (caseId === null) {
     return (

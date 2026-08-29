@@ -177,3 +177,23 @@ class Alert(Base):
     evidence: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(20), default="open")  # open | reviewed
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class CaseSnapshot(Base):
+    """Small key/value memory for detectors that compare against a previous run.
+
+    detect_centrality_shifts needs a before and an after; without somewhere to
+    keep the previous top-5 it could only ever report the current state, which
+    is not a shift. Kept as its own table so create_all picks it up with no
+    migration.
+    """
+
+    __tablename__ = "case_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    key: Mapped[str] = mapped_column(String(60), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (Index("ix_case_snapshot_case_key", "case_id", "key", unique=True),)

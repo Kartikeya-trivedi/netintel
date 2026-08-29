@@ -54,7 +54,10 @@ def process_document(document_id: int, raw: bytes) -> None:
         doc.error = None
         db.commit()
 
+        # Centrality feeds one of the detectors, so the stale cache has to go
+        # before detection runs, not after.
         _invalidate_graph_cache(doc.case_id)
+        _run_detection(doc.case_id, db)
 
     except Exception as exc:
         db.rollback()
@@ -73,6 +76,22 @@ def _invalidate_graph_cache(case_id: int) -> None:
     from app.services.graph import analytics
 
     analytics.invalidate_cache(case_id)
+
+
+def _run_detection(case_id: int, db: Session) -> None:
+    """Raise anomaly alerts for the case.
+
+    The document is already marked processed by this point, so a detector
+    failure must not flip it back to failed: the file really did ingest. The
+    error is logged and the ingest still counts.
+    """
+    from app.services.anomaly.detector import run_detection
+
+    try:
+        run_detection(db, case_id)
+    except Exception:
+        db.rollback()
+        logger.exception("Anomaly detection failed for case %s", case_id)
 
 
 # --- Reports -----------------------------------------------------------------

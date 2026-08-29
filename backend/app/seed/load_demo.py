@@ -39,6 +39,21 @@ def reset_and_load(db: Session) -> models.Case:
         generate_assets()
 
     existing = db.scalars(select(models.Case).where(models.Case.name == CASE_NAME)).all()
+    stale_ids = [case.id for case in existing]
+
+    # Alerts and snapshots hang off case_id without an ORM relationship, and
+    # SQLite does not enforce ON DELETE CASCADE unless the pragma is set. SQLite
+    # also reuses the freed primary key, so anything left behind would be
+    # silently adopted by the case created below -- yesterday's alerts showing
+    # up against today's data. Clear them explicitly.
+    if stale_ids:
+        db.query(models.Alert).filter(models.Alert.case_id.in_(stale_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(models.CaseSnapshot).filter(
+            models.CaseSnapshot.case_id.in_(stale_ids)
+        ).delete(synchronize_session=False)
+
     for case in existing:
         db.delete(case)
     db.commit()

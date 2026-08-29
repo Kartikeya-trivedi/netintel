@@ -41,7 +41,7 @@ function typesForScope(scope: Scope): EntityType[] {
 }
 
 export default function GraphExplorer() {
-  const { activeCase } = useCase()
+  const { activeCase, version } = useCase()
   const caseId = activeCase?.id ?? null
 
   const [metric, setMetric] = useState<MetricName>('betweenness')
@@ -60,13 +60,13 @@ export default function GraphExplorer() {
   const entityTypes = useMemo(() => typesForScope(scope), [scope])
   const typeKey = entityTypes.join(',')
 
-  const graph = useAsync(() => api.getGraph(caseId!, { entityTypes }), [caseId, typeKey], {
+  const graph = useAsync(() => api.getGraph(caseId!, { entityTypes }), [caseId, typeKey, version], {
     enabled: caseId !== null,
   })
-  const keyPlayers = useAsync(() => api.getKeyPlayers(caseId!, metric, 10), [caseId, metric], {
+  const keyPlayers = useAsync(() => api.getKeyPlayers(caseId!, metric, 10), [caseId, metric, version], {
     enabled: caseId !== null,
   })
-  const vulnerabilities = useAsync(() => api.getVulnerabilities(caseId!, 5), [caseId], {
+  const vulnerabilities = useAsync(() => api.getVulnerabilities(caseId!, 5), [caseId, version], {
     enabled: caseId !== null,
   })
 

@@ -23,7 +23,7 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 export default function Documents() {
-  const { activeCase, reload: reloadCases } = useCase()
+  const { activeCase, reload: reloadCases, version } = useCase()
   const caseId = activeCase?.id ?? null
 
   const [docType, setDocType] = useState('report')
@@ -33,15 +33,15 @@ export default function Documents() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const documents = useAsync(() => api.listDocuments(caseId!), [caseId], {
+  const documents = useAsync(() => api.listDocuments(caseId!), [caseId, version], {
     enabled: caseId !== null,
   })
-  const entities = useAsync(() => api.listEntities(caseId!), [caseId], {
+  const entities = useAsync(() => api.listEntities(caseId!), [caseId, version], {
     enabled: caseId !== null,
   })
   const detail = useAsync(
     () => api.getDocument(caseId!, selectedId!),
-    [caseId, selectedId],
+    [caseId, selectedId, version],
     { enabled: caseId !== null && selectedId !== null },
   )
 

@@ -27,13 +27,13 @@ const FILTERS: { value: Filter; label: string }[] = [
 /** Anomaly feed. Transaction spikes, structuring patterns, and communication
  *  bursts raised by the detection pass, newest and most severe first. */
 export default function Alerts() {
-  const { activeCase } = useCase()
+  const { activeCase, version } = useCase()
   const navigate = useNavigate()
   const caseId = activeCase?.id ?? null
 
   const [filter, setFilter] = useState<Filter>('all')
 
-  const alerts = useAsync(() => api.listAlerts(caseId!), [caseId], { enabled: caseId !== null })
+  const alerts = useAsync(() => api.listAlerts(caseId!), [caseId, version], { enabled: caseId !== null })
 
   const RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 }
 
