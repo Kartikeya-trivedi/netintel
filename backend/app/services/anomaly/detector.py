@@ -37,6 +37,13 @@ MIN_BASELINE_DAYS = 5
 # the configured z-score threshold.
 MAD_TO_SIGMA = 1.4826
 
+# A burst has to be a burst. A pair that talks about once a day has a MAD of
+# zero, and the fallback then scores a single extra call as an outlier; on the
+# demo case that raised twenty "bursts" of two or three calls and buried the
+# three real ones. Below this many calls a day is never flagged, however
+# unusual it looks in relative terms.
+MIN_BURST_CALLS = 5
+
 # How far below the reporting threshold still counts as "deliberately under".
 STRUCTURING_BAND = 0.10
 
@@ -95,6 +102,16 @@ def _owner_ids(*entity_ids: int | None) -> list[int]:
 
 def _money(amount: float) -> str:
     return f"{amount:,.0f}"
+
+
+def _score_text(score: float) -> str:
+    """Human-readable robust z for an alert description.
+
+    An account with a near-constant baseline has a tiny MAD, so one real spike
+    can score in the thousands. That is arithmetically right and reads as a
+    bug, so the description caps it; the exact value stays in the evidence.
+    """
+    return f"{score:.1f}" if score < 100 else "above 100"
 
 
 # --- Transactions ------------------------------------------------------------
@@ -157,7 +174,7 @@ def detect_transaction_spikes(
                     description=(
                         f"{len(rows)} outbound transfer(s) on {day.isoformat()} totalling "
                         f"{_money(total)}, against a typical day of {_money(baseline)} for "
-                        f"this account. Robust z-score {score:.1f}."
+                        f"this account. Robust z-score {_score_text(score)}."
                     ),
                     entity_ids=_owner_ids(*[r.from_entity_id for r in rows]),
                     evidence={
@@ -309,6 +326,8 @@ def detect_comm_bursts(db: Session, case_id: int) -> list[models.Alert]:
         baseline = statistics.median(counts)
 
         for day, count in sorted(by_day.items()):
+            if count < MIN_BURST_CALLS:
+                continue
             score = _robust_z(float(count), counts)
             if score < settings.txn_spike_zscore:
                 continue
@@ -330,7 +349,7 @@ def detect_comm_bursts(db: Session, case_id: int) -> list[models.Alert]:
                     description=(
                         f"{count} calls on {day.isoformat()} totalling {talk_time // 60} "
                         f"minutes, against a typical {baseline:.0f} call(s) a day for this "
-                        f"pair. Robust z-score {score:.1f}."
+                        f"pair. Robust z-score {_score_text(score)}."
                     ),
                     entity_ids=_owner_ids(
                         *[r.caller_entity_id for r in rows],

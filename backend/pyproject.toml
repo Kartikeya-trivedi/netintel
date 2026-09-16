@@ -17,6 +17,10 @@ dependencies = [
     "sqlalchemy>=2.0",
     # NLP / extraction
     "spacy>=3.8",
+    # The model is a real dependency, not a setup step. Installed ad hoc it sits
+    # outside the lockfile, and the next `uv sync` silently removes it: NER then
+    # returns nothing and every graph, count, and alert quietly degrades.
+    "en-core-web-lg",
     "rapidfuzz>=3.10",
     # Document parsing
     "pypdf>=5.1",
@@ -29,6 +33,9 @@ dependencies = [
     # Optional LLM extraction (feature-flagged via USE_LLM_EXTRACTION)
     "anthropic>=0.40",
 ]
+
+[tool.uv.sources]
+en-core-web-lg = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl" }
 
 [dependency-groups]
 dev = [

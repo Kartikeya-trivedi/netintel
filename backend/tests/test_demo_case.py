@@ -169,3 +169,65 @@ def test_graph_reconstructs_the_planted_network_exactly(demo_case, ground_truth)
 
     assert actors.number_of_nodes() == len(ground_truth["people"])
     assert actors.number_of_edges() == len(ground_truth["edges"])
+
+
+def _populate_case(db, name):
+    """One of every row type that belongs to a case."""
+    from datetime import UTC, datetime
+
+    from app import models
+
+    case = models.Case(name=name)
+    db.add(case)
+    db.flush()
+    doc = models.Document(case_id=case.id, filename="r.txt", doc_type="report")
+    a = models.Entity(case_id=case.id, canonical_name="A", entity_type="PERSON")
+    b = models.Entity(case_id=case.id, canonical_name="B", entity_type="PERSON")
+    db.add_all([doc, a, b])
+    db.flush()
+    stamp = datetime(2026, 3, 1, tzinfo=UTC)
+    owned = {"case_id": case.id}
+    on_doc = {**owned, "document_id": doc.id, "timestamp": stamp}
+    db.add_all(
+        [
+            models.Mention(
+                entity_id=a.id, document_id=doc.id, span_start=0, span_end=1, surface_text="A"
+            ),
+            models.Relationship(
+                **owned, source_entity_id=a.id, target_entity_id=b.id, rel_type="MET"
+            ),
+            models.Transaction(**on_doc, from_account="1", to_account="2", amount=1.0),
+            models.CommEvent(**on_doc, caller="1", callee="2"),
+            models.Alert(**owned, alert_type="STRUCTURING", title="t"),
+            models.CaseSnapshot(**owned, key="k", payload={}),
+        ]
+    )
+    db.commit()
+    return case.id
+
+
+def test_purge_removes_every_row_the_case_owns(db_session):
+    """A demo reset must replace the case, not stack another copy onto it.
+
+    Deleting only the case row left transactions, calls, and relationships
+    behind; SQLite reused the id, and each reset added a full duplicate of the
+    record files to the demo.
+    """
+    from app import models
+    from app.seed.load_demo import purge_cases
+
+    doomed = _populate_case(db_session, "Operation Nightfall")
+    kept = _populate_case(db_session, "Another case")
+
+    purge_cases(db_session, [doomed])
+
+    owned = (
+        models.Document, models.Entity, models.Relationship, models.Transaction,
+        models.CommEvent, models.Alert, models.CaseSnapshot,
+    )
+    for model in owned:
+        assert db_session.query(model).filter_by(case_id=doomed).count() == 0, model.__name__
+        assert db_session.query(model).filter_by(case_id=kept).count() > 0, model.__name__
+    assert db_session.get(models.Case, doomed) is None
+    assert db_session.query(models.Mention).count() == 1, "only the kept case's mention remains"
+

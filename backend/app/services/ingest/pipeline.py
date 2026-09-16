@@ -27,11 +27,14 @@ logger = logging.getLogger(__name__)
 MAX_EVIDENCE_PER_RELATIONSHIP = 8
 
 
-def process_document(document_id: int, raw: bytes) -> None:
+def process_document(document_id: int, raw: bytes, *, detect: bool = True) -> None:
     """Process one uploaded document end to end.
 
     Failures are recorded on the Document row rather than raised, so one bad
     file never blocks the rest of a bulk upload.
+
+    detect=False skips anomaly detection, for callers loading many files as a
+    single event that run detection once themselves when the load is complete.
     """
     db = SessionLocal()
     try:
@@ -57,7 +60,8 @@ def process_document(document_id: int, raw: bytes) -> None:
         # Centrality feeds one of the detectors, so the stale cache has to go
         # before detection runs, not after.
         _invalidate_graph_cache(doc.case_id)
-        _run_detection(doc.case_id, db)
+        if detect:
+            _run_detection(doc.case_id, db)
 
     except Exception as exc:
         db.rollback()

@@ -131,6 +131,16 @@ def test_comm_burst_detected(db_session, case):
     assert alerts[0].evidence["count"] == 20
 
 
+def test_comm_burst_ignores_a_trivial_uptick(db_session, case):
+    """Two calls instead of one is not a burst, even though it doubles the day."""
+    for day in range(10):
+        db_session.add(_call(case.id, "555000111", "555000222", day))
+    db_session.add(_call(case.id, "555000111", "555000222", 4, minute=30))
+    db_session.commit()
+
+    assert detector.detect_comm_bursts(db_session, case.id) == []
+
+
 def test_comm_burst_ignores_direction(db_session, case):
     """Whoever dialled, the pair is the same pair."""
     for day in range(10):

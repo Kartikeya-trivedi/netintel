@@ -9,10 +9,11 @@ from __future__ import annotations
 import hashlib
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app import models
+from app.db import Base
 from app.seed.generate_demo_data import (
     CASE_DESCRIPTION,
     CASE_NAME,
@@ -32,6 +33,43 @@ LOAD_ORDER = [
 ]
 
 
+def purge_cases(db: Session, case_ids: list[int]) -> None:
+    """Delete cases and every row that belongs to them.
+
+    Deleting the case row is not enough on its own. Only documents and entities
+    are cascaded by the ORM; transactions, call records, relationships, alerts,
+    and snapshots hang off case_id with ON DELETE CASCADE, which SQLite ignores
+    while the foreign_keys pragma is off. SQLite then reuses the freed primary
+    key, so the leftovers are silently adopted by the next case created: each
+    demo reset used to stack another full copy of the transactions and call
+    records onto the demo, inflating every count and every anomaly baseline.
+    """
+    if not case_ids:
+        return
+
+    stale_docs = select(models.Document.id).where(models.Document.case_id.in_(case_ids))
+    stale_entities = select(models.Entity.id).where(models.Entity.case_id.in_(case_ids))
+
+    # Mentions carry no case_id; reach them through their document or entity.
+    db.execute(
+        delete(models.Mention).where(
+            or_(
+                models.Mention.document_id.in_(stale_docs),
+                models.Mention.entity_id.in_(stale_entities),
+            )
+        )
+    )
+
+    # Dependents before parents, so no row is ever left pointing at a deleted one.
+    for table in reversed(Base.metadata.sorted_tables):
+        if table.name != "cases" and "case_id" in table.c:
+            db.execute(table.delete().where(table.c.case_id.in_(case_ids)))
+
+    db.execute(delete(models.Case).where(models.Case.id.in_(case_ids)))
+    db.commit()
+    db.expire_all()
+
+
 def reset_and_load(db: Session) -> models.Case:
     """Delete any existing demo case and load a fresh one from demo_assets."""
     if not (OUTPUT_DIR / "ground_truth.json").exists():
@@ -39,24 +77,7 @@ def reset_and_load(db: Session) -> models.Case:
         generate_assets()
 
     existing = db.scalars(select(models.Case).where(models.Case.name == CASE_NAME)).all()
-    stale_ids = [case.id for case in existing]
-
-    # Alerts and snapshots hang off case_id without an ORM relationship, and
-    # SQLite does not enforce ON DELETE CASCADE unless the pragma is set. SQLite
-    # also reuses the freed primary key, so anything left behind would be
-    # silently adopted by the case created below -- yesterday's alerts showing
-    # up against today's data. Clear them explicitly.
-    if stale_ids:
-        db.query(models.Alert).filter(models.Alert.case_id.in_(stale_ids)).delete(
-            synchronize_session=False
-        )
-        db.query(models.CaseSnapshot).filter(
-            models.CaseSnapshot.case_id.in_(stale_ids)
-        ).delete(synchronize_session=False)
-
-    for case in existing:
-        db.delete(case)
-    db.commit()
+    purge_cases(db, [case.id for case in existing])
 
     case = models.Case(name=CASE_NAME, description=CASE_DESCRIPTION)
     db.add(case)
@@ -86,9 +107,18 @@ def reset_and_load(db: Session) -> models.Case:
 
         # process_document opens its own session, so the row must be committed
         # before it runs.
-        process_document(doc.id, raw)
+        process_document(doc.id, raw, detect=False)
 
     db.expire_all()
+
+    # The seed is one ingest event, so detection runs once on the finished case.
+    # Detecting after every file would take the centrality baseline from a
+    # half-built network and then report each person the load order happened
+    # to promote as having "entered the top 5 brokers" -- a dozen findings that
+    # say nothing about the case.
+    from app.services.anomaly.detector import run_detection
+
+    run_detection(db, case.id)
     return case
 
 
