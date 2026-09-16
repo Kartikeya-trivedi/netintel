@@ -80,13 +80,15 @@ export default function NetworkGraph({
     return Math.max(...scores, 0.000001)
   }, [data, sizeBy])
 
+  // Removal is deliberately not part of the element set. New elements rebuild
+  // the graph and re-run the layout, which would move every node at exactly the
+  // moment the investigator needs to see what fell apart. Withheld nodes are
+  // hidden by class in the emphasis effect instead, so the picture holds still.
   const elements = useMemo<ElementDefinition[]>(() => {
-    const gone = removed ?? new Set<string>()
-    const visible = data.nodes.filter((n) => !gone.has(n.id))
-    const ids = new Set(visible.map((n) => n.id))
+    const ids = new Set(data.nodes.map((n) => n.id))
 
     return [
-      ...visible.map((n) => ({
+      ...data.nodes.map((n) => ({
         data: {
           id: n.id,
           label: n.label,
@@ -107,7 +109,7 @@ export default function NetworkGraph({
           },
         })),
     ]
-  }, [data, sizeBy, maxScore, removed])
+  }, [data, sizeBy, maxScore])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -131,6 +133,11 @@ export default function NetworkGraph({
             'text-margin-y': 5,
             'text-max-width': '110px',
             'text-wrap': 'ellipsis',
+            // A halo in the ground colour keeps a label legible where it crosses
+            // edges, which in a dense cell is most of them.
+            'text-outline-color': palette.ring,
+            'text-outline-width': 2,
+            'text-outline-opacity': 0.9,
             'background-color': (el: cytoscape.NodeSingular) =>
               colorBy === 'community'
                 ? palette.community[el.data('community') % palette.community.length]
@@ -168,16 +175,33 @@ export default function NetworkGraph({
           selector: '.picked',
           style: { 'border-width': 3.5, 'border-color': palette.picked, opacity: 1 },
         },
+        // Removal simulation. Later rules win, so these sit last.
+        { selector: '.withheld', style: { display: 'none' } },
+        { selector: '.context', style: { opacity: palette.dim } },
+        {
+          selector: 'node.fragment',
+          style: {
+            'background-color': (el: cytoscape.NodeSingular) =>
+              palette.community[Number(el.data('fragment')) % palette.community.length],
+          },
+        },
       ],
-      layout: {
-        name: 'fcose',
-        animate: false,
-        nodeRepulsion: 9000,
-        idealEdgeLength: 95,
-        gravity: 0.28,
-        randomize: false,
-      } as never,
+      // Seed with a circle before refining. fcose runs incrementally when
+      // randomize is off, and freshly added nodes carry no positions -- from
+      // that degenerate start it settles into a straight diagonal rather than a
+      // network. A circle is deterministic and gives it something to relax
+      // from, so the layout still comes back identical run to run.
+      layout: { name: 'circle', animate: false } as never,
     })
+
+    cy.layout({
+      name: 'fcose',
+      animate: false,
+      nodeRepulsion: 9000,
+      idealEdgeLength: 95,
+      gravity: 0.28,
+      randomize: false,
+    } as never).run()
 
     if (onSelectNode) cy.on('tap', 'node', (e) => onSelectNode(Number(e.target.id())))
     if (onSelectEdge) cy.on('tap', 'edge', (e) => onSelectEdge(String(e.target.id())))
@@ -197,8 +221,30 @@ export default function NetworkGraph({
     const cy = cyRef.current
     if (!cy) return
 
+    const gone = removed ?? new Set<string>()
+
     cy.batch(() => {
-      cy.elements().removeClass('dimmed flagged picked')
+      cy.elements().removeClass('dimmed flagged picked withheld context fragment')
+
+      if (gone.size) {
+        const withheld = cy.nodes().filter((node) => gone.has(node.id()))
+        withheld.addClass('withheld')
+
+        // Show the network the removal analysis actually scores: people only.
+        // Places the extractor typed as organisations would otherwise bridge
+        // the cells on screen and hide the split the numbers describe.
+        const people = cy.nodes('[entityType = "PERSON"]').not(withheld)
+        const context = cy.nodes().not(people).not(withheld)
+        context.union(context.connectedEdges()).addClass('context')
+
+        people
+          .union(people.edgesWith(people))
+          .components()
+          .sort((a, b) => b.nodes().length - a.nodes().length)
+          .forEach((component, index) => {
+            component.nodes().data('fragment', index).addClass('fragment')
+          })
+      }
 
       if (highlighted?.size) {
         cy.nodes().forEach((node) => {
@@ -220,7 +266,7 @@ export default function NetworkGraph({
         }
       }
     })
-  }, [highlighted, selectedId, elements])
+  }, [highlighted, selectedId, elements, removed])
 
   return <div ref={containerRef} className="h-full w-full" />
 }

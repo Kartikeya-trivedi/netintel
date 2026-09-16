@@ -70,6 +70,42 @@ export default function GraphExplorer() {
     enabled: caseId !== null,
   })
 
+  // An isolated node says nothing about a network, and the layout tiles every
+  // one of them into the same strip where their labels print over each other.
+  const drawn = useMemo(() => {
+    if (!graph.data) return null
+    const linked = new Set<string>()
+    for (const edge of graph.data.edges) {
+      linked.add(edge.source)
+      linked.add(edge.target)
+    }
+    return { ...graph.data, nodes: graph.data.nodes.filter((n) => linked.has(n.id)) }
+  }, [graph.data])
+
+  // Live fragment count for the removal simulation, scored the way the backend
+  // scores it: connected components over people only. Places and organisations
+  // are attributes, and counting them would let them bridge the cells.
+  const fragments = useMemo(() => {
+    if (!drawn || removed.size === 0) return null
+    const people = new Set(
+      drawn.nodes.filter((n) => n.entity_type === 'PERSON' && !removed.has(n.id)).map((n) => n.id),
+    )
+    const parent = new Map<string, string>()
+    for (const id of people) parent.set(id, id)
+    const find = (id: string): string => {
+      let root = id
+      while (parent.get(root) !== root) root = parent.get(root)!
+      parent.set(id, root)
+      return root
+    }
+    for (const edge of drawn.edges) {
+      if (people.has(edge.source) && people.has(edge.target)) {
+        parent.set(find(edge.source), find(edge.target))
+      }
+    }
+    return new Set([...people].map(find)).size
+  }, [drawn, removed])
+
   const nodesById = useMemo(
     () => new Map((graph.data?.nodes ?? []).map((n) => [n.id, n])),
     [graph.data],
@@ -122,7 +158,10 @@ export default function GraphExplorer() {
     ? (graph.data?.edges.find((e) => e.id === selectedEdge) ?? null)
     : null
   const impact = vulnerabilities.data?.removal_impacts ?? []
-  const visibleNodes = (graph.data?.nodes.length ?? 0) - removed.size
+  const visibleNodes = (drawn?.nodes.length ?? 0) - removed.size
+  const visibleEdges = (drawn?.edges ?? []).filter(
+    (e) => !removed.has(e.source) && !removed.has(e.target),
+  ).length
 
   return (
     <div className="grid min-h-full grid-cols-1 xl:h-full xl:min-h-0 xl:grid-cols-[248px_minmax(0,1fr)_312px]">
@@ -221,9 +260,9 @@ export default function GraphExplorer() {
           </div>
         )}
 
-        {graph.data && (
+        {drawn && (
           <NetworkGraph
-            data={graph.data}
+            data={drawn}
             sizeBy={metric}
             colorBy={colorBy}
             highlighted={highlighted}
@@ -241,14 +280,18 @@ export default function GraphExplorer() {
           </div>
           <div>
             <Legend>Edges</Legend>
-            <p className="readout text-lg leading-none text-ink-100">
-              {graph.data?.edges.length ?? 0}
-            </p>
+            <p className="readout text-lg leading-none text-ink-100">{visibleEdges}</p>
           </div>
           {removed.size > 0 && (
             <div className="rise">
               <Legend className="text-signal">Withheld</Legend>
               <p className="readout text-lg leading-none text-signal">{removed.size}</p>
+            </div>
+          )}
+          {fragments !== null && (
+            <div className="rise">
+              <Legend className="text-signal">Fragments</Legend>
+              <p className="readout text-lg leading-none text-signal">{fragments}</p>
             </div>
           )}
         </div>
