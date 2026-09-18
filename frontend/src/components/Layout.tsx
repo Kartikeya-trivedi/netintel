@@ -1,19 +1,26 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { useCase } from '../lib/CaseContext'
 import { toggleTheme, useResolvedTheme } from '../lib/theme'
+import { useWorkspace } from '../lib/WorkspaceContext'
 import { Legend } from './Instrument'
 
 const NAV = [
-  { to: '/graph', label: 'Network', index: '01' },
-  { to: '/documents', label: 'Sources', index: '02' },
-  { to: '/dashboard', label: 'Overview', index: '03' },
-  { to: '/alerts', label: 'Signals', index: '04' },
+  { to: '/findings', label: 'Findings', index: '01' },
+  { to: '/graph', label: 'Network', index: '02' },
+  { to: '/documents', label: 'Sources', index: '03' },
+  { to: '/dashboard', label: 'Overview', index: '04' },
+  { to: '/alerts', label: 'Signals', index: '05' },
 ]
 
 export default function Layout() {
   const { cases, activeCase, setActiveCaseId } = useCase()
+  const { workspace } = useWorkspace()
+  const { pathname } = useLocation()
   const theme = useResolvedTheme()
+  // The findings views compare several case files at once, so a single-case
+  // picker there would suggest a scope the page does not have.
+  const crossCase = pathname === '/findings' || pathname.startsWith('/findings/')
 
   return (
     <div className="grain relative flex h-full flex-col overflow-hidden bg-ink-1000">
@@ -28,7 +35,9 @@ export default function Layout() {
           </div>
         </div>
 
-        <nav className="flex min-w-0 items-stretch">
+        {/* Scrolls sideways when the frame is too narrow for every tab, rather
+            than spilling under the case cell beside it. */}
+        <nav className="flex min-w-0 items-stretch overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {NAV.map((item) => (
             <NavLink
               key={item.to}
@@ -61,26 +70,40 @@ export default function Layout() {
 
         {/* The case cell absorbs whatever width is left and truncates rather
             than pushing itself off the edge of the frame. */}
-        <div className="ml-auto flex min-w-0 items-center gap-2.5 border-l hairline px-3 sm:px-4">
-          <Legend className="hidden shrink-0 sm:inline">Case</Legend>
-          {cases.length > 1 ? (
-            <select
-              value={activeCase?.id ?? ''}
-              onChange={(event) => setActiveCaseId(Number(event.target.value))}
-              className="min-w-0 border hairline bg-ink-950 px-2 py-1 font-mono text-xs text-ink-200"
-            >
-              {cases.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          ) : (
+        {crossCase ? (
+          <div className="ml-auto flex min-w-0 items-center gap-2.5 border-l hairline px-3 sm:px-4">
+            <Legend className="hidden shrink-0 sm:inline">Workspace</Legend>
             <span className="truncate font-mono text-xs text-ink-200">
-              {activeCase?.name ?? 'No case loaded'}
+              {workspace ? workspace.name : 'No workspace open'}
             </span>
-          )}
-        </div>
+            {workspace && (
+              <span className="readout hidden shrink-0 text-[10px] text-ink-500 md:inline">
+                {workspace.cases.map((item) => item.code).join(' · ')}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="ml-auto flex min-w-0 items-center gap-2.5 border-l hairline px-3 sm:px-4">
+            <Legend className="hidden shrink-0 sm:inline">Case</Legend>
+            {cases.length > 1 ? (
+              <select
+                value={activeCase?.id ?? ''}
+                onChange={(event) => setActiveCaseId(Number(event.target.value))}
+                className="min-w-0 border hairline bg-ink-950 px-2 py-1 font-mono text-xs text-ink-200"
+              >
+                {cases.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="truncate font-mono text-xs text-ink-200">
+                {activeCase?.name ?? 'No case loaded'}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Reading a case file on paper or in a darkroom. Pins the choice on
             click; until then the OS preference decides. */}

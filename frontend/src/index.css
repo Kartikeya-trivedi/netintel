@@ -44,6 +44,12 @@
   --color-sev-medium: oklch(0.535 0.112 70);
   --color-sev-high: oklch(0.440 0.165 27);
 
+  /* Finding status. Always printed beside its words ("Supported", "Lead —
+     needs review", "Not supported"); the colour only speeds up scanning. */
+  --color-status-supported: oklch(0.480 0.082 158);
+  --color-status-lead: oklch(0.545 0.118 68);
+  --color-status-unsupported: oklch(0.545 0.016 70);
+
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
   --font-cond: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
@@ -132,6 +138,10 @@
     --color-sev-medium: oklch(0.762 0.128 74);
     --color-sev-high: oklch(0.660 0.172 27);
 
+    --color-status-supported: oklch(0.735 0.098 158);
+    --color-status-lead: oklch(0.780 0.128 74);
+    --color-status-unsupported: oklch(0.640 0.016 70);
+
     --rule-color: oklch(0.92 0.012 80 / 0.14);
     --divider: oklch(0.92 0.012 80 / 0.10);
     --gap-fill: oklch(0.92 0.012 80 / 0.09);
@@ -209,6 +219,10 @@
   --color-sev-medium: oklch(0.762 0.128 74);
   --color-sev-high: oklch(0.660 0.172 27);
 
+  --color-status-supported: oklch(0.735 0.098 158);
+  --color-status-lead: oklch(0.780 0.128 74);
+  --color-status-unsupported: oklch(0.640 0.016 70);
+
   --rule-color: oklch(0.92 0.012 80 / 0.14);
   --divider: oklch(0.92 0.012 80 / 0.10);
   --gap-fill: oklch(0.92 0.012 80 / 0.09);
@@ -268,23 +282,63 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Instrument-panel legend: tiny, tracked-out, condensed. Used for every label
-   that names a control rather than carrying data. */
-.legend {
-  font-family: var(--font-cond);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-ink-500);
-}
+/* The component classes below live in Tailwind's components layer, below the
+   utilities. Unlayered, they outranked every utility: "legend text-signal"
+   printed grey and "hairline hover:border-signal" never changed colour, which
+   silently undid the red "Error" legend and every hover border in the app. */
+@layer components {
+  /* Instrument-panel legend: tiny, tracked-out, condensed. Used for every label
+     that names a control rather than carrying data. */
+  .legend {
+    font-family: var(--font-cond);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-500);
+  }
 
-/* Every number on screen is monospace and tabular, so digits line up in
-   columns and a changing value does not reflow its neighbours. */
-.readout {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'zero' 1;
+  /* Every number on screen is monospace and tabular, so digits line up in
+     columns and a changing value does not reflow its neighbours. */
+  .readout {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'zero' 1;
+  }
+
+  /* Rule the weight of a pencil line on a form. */
+  .hairline {
+    border-color: var(--rule-color);
+  }
+
+  /* Theme-aware fills, replacing hardcoded black/white alpha utilities that
+     only worked against one ground. */
+  .gap-fill {
+    background-color: var(--gap-fill);
+  }
+  .divide-rule > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--divider);
+  }
+  .tint-hover:hover {
+    background-color: var(--tint);
+  }
+
+  /* Panels are a sheet laid on the sheet: a hairline of light along the top
+     edge and a soft drop so the seam reads without a heavy border. */
+  .bezel {
+    box-shadow:
+      inset 0 1px 0 var(--bezel-top),
+      0 1px 2px var(--bezel-drop);
+  }
+
+  /* Ruled measure used under page titles and between stat cells. */
+  .tick {
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--tick-color) 0 1px,
+      transparent 1px 6px
+    );
+  }
 }
 
 /* Ledger grid behind the canvas, with a vignette so the centre of the graph
@@ -308,23 +362,6 @@ body {
   opacity: var(--grain-opacity);
   mix-blend-mode: var(--grain-blend);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Rule the weight of a pencil line on a form. */
-.hairline {
-  border-color: var(--rule-color);
-}
-
-/* Theme-aware fills, replacing hardcoded black/white alpha utilities that only
-   worked against one ground. */
-.gap-fill {
-  background-color: var(--gap-fill);
-}
-.divide-rule > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--divider);
-}
-.tint-hover:hover {
-  background-color: var(--tint);
 }
 
 @keyframes rise {
@@ -419,19 +456,28 @@ select option {
 .stagger > *:nth-child(9) { animation-delay: 0.26s; }
 .stagger > *:nth-child(10) { animation-delay: 0.29s; }
 
-/* Panels are a sheet laid on the sheet: a hairline of light along the top edge
-   and a soft drop so the seam reads without a heavy border. */
-.bezel {
-  box-shadow:
-    inset 0 1px 0 var(--bezel-top),
-    0 1px 2px var(--bezel-drop);
+/* A source claim is hatched wherever it sits beside a record, so a statement
+   someone made never reads as something a system observed. Takes the colour
+   of the text it is set in. */
+.hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    currentColor 0 1px,
+    transparent 1px 4px
+  );
 }
 
-/* Ruled measure used under page titles and between stat cells. */
-.tick {
-  background-image: repeating-linear-gradient(
-    to right,
-    var(--tick-color) 0 1px,
-    transparent 1px 6px
-  );
+/* Work with no measurable progress (the demo reload) still shows movement,
+   so a five-second wait does not read as a hang. */
+@keyframes indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+.indeterminate {
+  animation: indeterminate 1.3s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
