@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     # Graph rendering guard (PLAN.md 9)
     max_graph_nodes: int = 500
 
+    # Investigation layer (MASTER_PLAN.md). Originals are kept byte for byte in a
+    # content-addressed store before anything parses them; the signing key signs
+    # exported finding packages. Both paths are runtime state, not source.
+    evidence_store_dir: Path = BASE_DIR / "evidence_store"
+    signing_key_path: Path = BASE_DIR / "keys" / "receipt_ed25519.pem"
+
 
 @lru_cache
 def get_settings() -> Settings:

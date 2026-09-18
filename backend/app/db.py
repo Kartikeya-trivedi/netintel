@@ -39,5 +39,6 @@ def get_db() -> Generator[Session, None, None]:
 def init_db() -> None:
     """Create all tables. Called on application startup."""
     from app import models  # noqa: F401  (registers models on Base.metadata)
+    from app.investigation import models as investigation_models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

@@ -13,6 +13,12 @@ from pathlib import Path
 _TEST_DB = Path(tempfile.gettempdir()) / "netintel_pytest.db"
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TEST_DB.as_posix()}")
 
+# Preserved originals and the signing key are runtime state too; tests keep
+# theirs in a throwaway directory rather than the developer's store.
+_TEST_STATE = Path(tempfile.mkdtemp(prefix="netintel_pytest_"))
+os.environ.setdefault("EVIDENCE_STORE_DIR", str(_TEST_STATE / "evidence_store"))
+os.environ.setdefault("SIGNING_KEY_PATH", str(_TEST_STATE / "keys" / "receipt_ed25519.pem"))
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
@@ -30,11 +36,14 @@ def _reset_analytics_cache():
     Case ids restart at 1 in every fresh test database, so without this a case
     would inherit another test's cached centrality.
     """
+    from app.investigation import service
     from app.services.graph import analytics
 
     analytics.clear_all_caches()
+    service.clear_cache()
     yield
     analytics.clear_all_caches()
+    service.clear_cache()
 
 
 @pytest.fixture

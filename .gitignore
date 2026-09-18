@@ -29,6 +29,12 @@ dist-ssr/
 
 # Generated demo assets (regenerate with `uv run python -m app.seed.generate_demo_data`)
 backend/app/seed/demo_assets/
+backend/app/seed/broken_mirror_assets/
+
+# Preserved original evidence and the local signing key. Both are runtime state:
+# originals can hold case material, and a committed private key signs nothing.
+backend/evidence_store/
+backend/keys/
 
 # Editors / OS
 .vscode/

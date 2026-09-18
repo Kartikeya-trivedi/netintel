@@ -47,6 +47,12 @@ def purge_cases(db: Session, case_ids: list[int]) -> None:
     if not case_ids:
         return
 
+    # Workspaces name their cases in a JSON list, which no foreign key covers.
+    # Left behind, a stale workspace would inherit whatever case reuses the id.
+    from app.investigation.service import purge_workspaces
+
+    purge_workspaces(db, case_ids)
+
     stale_docs = select(models.Document.id).where(models.Document.case_id.in_(case_ids))
     stale_entities = select(models.Entity.id).where(models.Entity.case_id.in_(case_ids))
 

@@ -32,6 +32,9 @@ dependencies = [
     "scikit-learn>=1.5",
     # Optional LLM extraction (feature-flagged via USE_LLM_EXTRACTION)
     "anthropic>=0.40",
+    # Ed25519 signatures on exported finding packages. An established library,
+    # never hand-rolled primitives.
+    "cryptography>=43",
 ]
 
 [tool.uv.sources]

@@ -5,6 +5,7 @@ poll Document.status (PLAN.md section 5.1).
 """
 
 import hashlib
+import logging
 
 from fastapi import (
     APIRouter,
@@ -19,9 +20,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models
-from app.db import get_db
+from app.db import SessionLocal, get_db
+from app.investigation import service as investigation
 from app.schemas import DocumentDetail, DocumentOut
 from app.services.ingest.pipeline import process_document
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cases/{case_id}/documents", tags=["ingest"])
 
@@ -80,8 +84,36 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
+    # Keep the original before anything parses it. A hash alone cannot bring a
+    # source back if an extraction is ever questioned (MASTER_PLAN.md section 8).
+    artifact = investigation.preserve(
+        db,
+        case_id=case_id,
+        filename=doc.filename,
+        kind=doc_type,
+        raw=raw,
+        document_id=doc.id,
+    )
+
     background.add_task(process_document, doc.id, raw)
+    background.add_task(_extract_evidence, artifact.id)
     return doc
+
+
+def _extract_evidence(artifact_id: int) -> None:
+    """Parse the preserved original into the evidence layer, in its own session.
+
+    Independent of the older pipeline: a failure here is recorded on the
+    artifact and never flips the document itself to failed.
+    """
+    session = SessionLocal()
+    try:
+        investigation.extract_artifact(session, artifact_id)
+    except Exception:
+        session.rollback()
+        logger.exception("Evidence extraction failed for artifact %s", artifact_id)
+    finally:
+        session.close()
 
 
 @router.get("/{document_id}", response_model=DocumentDetail)
