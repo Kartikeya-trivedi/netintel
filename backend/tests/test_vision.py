@@ -252,3 +252,36 @@ def test_deleting_a_run_takes_its_signal_with_it(client, case, db_session):
     assert "Video: 2 people" not in remaining
     # Only this run's signal goes: other runs and other signal types are untouched.
     assert remaining == {"Video: another run", "Split transfers"}
+
+
+def test_deleting_a_case_takes_its_runs_and_frames(db_session, case):
+    """Orphaned frames are re-adopted by the next run that takes the same id.
+
+    SQLite only enforces ondelete="CASCADE" when foreign keys are switched on,
+    so this guards the PRAGMA as much as the relationship: without either, a
+    reseeded demo shows one upload's frames three times over.
+    """
+    from app import models
+
+    run = models.VisionRun(
+        case_id=case.id,
+        source_kind="video",
+        source_ref="gate-cam-03.mp4",
+        engine="yolov8n",
+        status="processed",
+    )
+    run.frames = [
+        models.VisionFrame(
+            frame_index=i, timestamp_sec=float(i), image_path=f"vision/x/{i:03d}.jpg"
+        )
+        for i in range(3)
+    ]
+    db_session.add(run)
+    db_session.commit()
+    assert db_session.query(models.VisionFrame).count() == 3
+
+    db_session.delete(case)
+    db_session.commit()
+
+    assert db_session.query(models.VisionRun).count() == 0
+    assert db_session.query(models.VisionFrame).count() == 0

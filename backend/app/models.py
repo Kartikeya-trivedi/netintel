@@ -36,6 +36,11 @@ class Case(Base):
     entities: Mapped[list[Entity]] = relationship(
         back_populates="case", cascade="all, delete-orphan"
     )
+    # Reseeding the demo deletes the case. Without this the runs it owns are
+    # left behind, and the next case to take this id inherits them.
+    vision_runs: Mapped[list[VisionRun]] = relationship(
+        back_populates="case", cascade="all, delete-orphan"
+    )
 
 
 class Document(Base):
@@ -228,6 +233,7 @@ class VisionRun(Base):
     summary: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
+    case: Mapped[Case] = relationship(back_populates="vision_runs")
     frames: Mapped[list[VisionFrame]] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
