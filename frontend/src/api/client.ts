@@ -7,6 +7,7 @@
 import type {
   Alert, Case, CaseStats, Community, Doc, DocDetail, Entity, EntityProfile,
   GraphPayload, KeyPlayer, MetricName, PathResult, VulnerabilityReport,
+  VisionRun, VisionRunDetail,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -132,6 +133,28 @@ export const api = {
   listAlerts: (caseId: number) => request<Alert[]>(`/api/cases/${caseId}/alerts`),
   updateAlertStatus: (caseId: number, alertId: number, status: 'open' | 'reviewed') =>
     request<Alert>(`/api/cases/${caseId}/alerts/${alertId}?status=${status}`, { method: 'PATCH' }),
+
+  // Vision — CCTV stills and uploaded video
+  listVisionRuns: (caseId: number) => request<VisionRun[]>(`/api/cases/${caseId}/vision`),
+  getVisionRun: (caseId: number, runId: number) =>
+    request<VisionRunDetail>(`/api/cases/${caseId}/vision/${runId}`),
+  analyseVideo: (caseId: number, file: File, maxFrames?: number) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (maxFrames) form.append('max_frames', String(maxFrames))
+    return request<VisionRun>(`/api/cases/${caseId}/vision/video`, { method: 'POST', body: form })
+  },
+  analyseCamera: (caseId: number, url: string, frames = 4) =>
+    request<VisionRun>(`/api/cases/${caseId}/vision/camera`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, frames }),
+    }),
+  deleteVisionRun: (caseId: number, runId: number) =>
+    request<void>(`/api/cases/${caseId}/vision/${runId}`, { method: 'DELETE' }),
+  /** Annotated frame JPEG. Used as an <img> src, so it returns a URL not a promise. */
+  visionFrameUrl: (caseId: number, runId: number, frameIndex: number) =>
+    `${BASE}/api/cases/${caseId}/vision/${runId}/frames/${frameIndex}`,
 
   // Demo
   resetDemo: () => request<Case>('/api/demo/reset', { method: 'POST' }),

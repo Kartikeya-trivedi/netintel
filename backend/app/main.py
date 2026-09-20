@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import init_db
 from app.investigation.router import router as investigation_router
-from app.routers import alerts, cases, demo, entities, graph, ingest, search
+from app.routers import alerts, cases, demo, entities, graph, ingest, search, vision
 
 settings = get_settings()
 
@@ -48,6 +48,8 @@ app.include_router(graph.router)
 app.include_router(alerts.router)
 app.include_router(search.router)
 app.include_router(demo.router)
+# CCTV stills and uploaded video, read for clues by the detector.
+app.include_router(vision.router)
 # Findings, challenges and signed exports across authorised cases (MASTER_PLAN.md).
 app.include_router(investigation_router)
 

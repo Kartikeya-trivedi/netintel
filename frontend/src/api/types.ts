@@ -9,7 +9,7 @@ export type RelType =
   | 'LOCATED_AT' | 'MEMBER_OF' | 'OWNS'
 
 export type AlertType =
-  | 'TRANSACTION_SPIKE' | 'STRUCTURING' | 'COMM_BURST'
+  | 'TRANSACTION_SPIKE' | 'STRUCTURING' | 'COMM_BURST' | 'CCTV_SIGHTING'
   | 'NEW_LINK' | 'HIGH_CENTRALITY_SHIFT'
 
 export type Severity = 'low' | 'medium' | 'high'
@@ -162,3 +162,54 @@ export interface Alert {
 }
 
 export type MetricName = 'degree' | 'betweenness' | 'eigenvector' | 'pagerank'
+
+export type VisionSource = 'video' | 'cctv'
+export type VisionStatus = 'pending' | 'processing' | 'processed' | 'failed'
+
+export interface VisionDetection {
+  label: string
+  confidence: number
+  /** Pixel box in the frame: [x1, y1, x2, y2]. */
+  box: [number, number, number, number]
+  relevance: 'person' | 'vehicle' | 'carried' | 'device' | 'weapon' | 'ambient'
+}
+
+export interface VisionClue {
+  kind: string
+  severity: Severity
+  title: string
+  detail: string
+  /** Frame indices this clue was read from. */
+  frames: number[]
+}
+
+export interface VisionFrame {
+  id: number
+  frame_index: number
+  timestamp_sec: number
+  detections: VisionDetection[]
+}
+
+export interface VisionRun {
+  id: number
+  case_id: number
+  source_kind: VisionSource
+  source_ref: string
+  engine: string
+  status: VisionStatus
+  error: string | null
+  frame_count: number
+  detection_count: number
+  clues: VisionClue[]
+  summary: {
+    frames?: number
+    detections?: number
+    labels?: Record<string, number>
+    duration_sec?: number
+  }
+  created_at: string
+}
+
+export interface VisionRunDetail extends VisionRun {
+  frames: VisionFrame[]
+}

@@ -11,6 +11,7 @@ const Documents = lazy(() => import('./pages/Documents'))
 const EntityProfile = lazy(() => import('./pages/EntityProfile'))
 const Findings = lazy(() => import('./pages/Findings'))
 const GraphExplorer = lazy(() => import('./pages/GraphExplorer'))
+const Vision = lazy(() => import('./pages/Vision'))
 
 /** The public page needs no case data. The app entry still opens Findings,
  *  or the bundled graph when running the read-only static preview. */
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/graph" element={<GraphExplorer />} />
           <Route path="/documents" element={<Documents />} />
+          <Route path="/vision" element={<Vision />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/entities/:entityId" element={<EntityProfile />} />
         </Route>

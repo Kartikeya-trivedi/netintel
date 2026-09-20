@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     evidence_store_dir: Path = BASE_DIR / "evidence_store"
     signing_key_path: Path = BASE_DIR / "keys" / "receipt_ed25519.pem"
 
+    # CCTV / video analysis. Cameras normally sit on private networks, so the
+    # server is allowed to reach them by default; set this false in production
+    # and whitelist reachable hosts at the network layer instead.
+    vision_allow_private_hosts: bool = True
+    vision_max_frames: int = 12
+    vision_max_upload_mb: int = 200
+
 
 @lru_cache
 def get_settings() -> Settings:

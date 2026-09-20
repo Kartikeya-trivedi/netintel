@@ -197,3 +197,62 @@ class CaseSnapshot(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     __table_args__ = (Index("ix_case_snapshot_case_key", "case_id", "key", unique=True),)
+
+
+class VisionRun(Base):
+    """One pass of the detector over a video upload or a camera grab.
+
+    The run holds what was asked for and what came back in aggregate; the
+    frames hold the pictures. Split in two because the frame strip is the
+    expensive read and the run list is the cheap one.
+    """
+
+    __tablename__ = "vision_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    # video | cctv
+    source_kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Upload filename, or the camera URL that was read.
+    source_ref: Mapped[str] = mapped_column(String(500), nullable=False)
+    # yolov8n | motion-fallback — which detector actually produced these boxes.
+    engine: Mapped[str] = mapped_column(String(40), nullable=False)
+    # pending | processing | processed | failed
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    error: Mapped[str | None] = mapped_column(Text)
+    frame_count: Mapped[int] = mapped_column(Integer, default=0)
+    detection_count: Mapped[int] = mapped_column(Integer, default=0)
+    # list[{kind, severity, title, detail, frames: list[int]}]
+    clues: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    # {frames, detections, labels: {label: count}, duration_sec}
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    frames: Mapped[list[VisionFrame]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by="VisionFrame.frame_index",
+    )
+
+
+class VisionFrame(Base):
+    """One sampled frame, its detections, and the annotated JPEG on disk."""
+
+    __tablename__ = "vision_frames"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("vision_runs.id", ondelete="CASCADE"), index=True
+    )
+    frame_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Offset into the clip, or time since the first grab for a camera.
+    timestamp_sec: Mapped[float] = mapped_column(Float, default=0.0)
+    # Path relative to settings.evidence_store_dir, so moving the store does
+    # not strand every frame ever written.
+    image_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    # list[{label, confidence, box: [x1, y1, x2, y2], relevance}]
+    detections: Mapped[list[dict]] = mapped_column(JSON, default=list)
+
+    run: Mapped[VisionRun] = relationship(back_populates="frames")
+
+    __table_args__ = (Index("ix_vision_frame_run_index", "run_id", "frame_index"),)
