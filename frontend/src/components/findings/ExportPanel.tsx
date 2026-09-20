@@ -3,8 +3,8 @@ import { useId, useState } from 'react'
 import { inv, type VerifyReport } from '../../api/investigation'
 import { errorMessage, formatBytes, formatDateTime } from '../../lib/format'
 import { useScopedAsync } from '../../lib/useApi'
-import { ErrorNote, Legend, Spinner } from '../Instrument'
-import { ActionButton, Note, SectionHeading, Tag } from './Controls'
+import { CopyButton, ErrorNote, FieldLabel, LoadingState } from '../../ui'
+import { Button, Callout, SectionHeading, Chip } from './shared'
 import { statusLabel } from './StatusBadge'
 
 /** Export a signed, reproducible package of this finding, and check one.
@@ -19,18 +19,33 @@ import { statusLabel } from './StatusBadge'
  */
 
 const CONTENTS: [string, string][] = [
-  ['manifest.json', 'Every other file with its SHA-256 digest, and what was exported.'],
-  ['signature.json', 'Ed25519 signature over the manifest, with the signing key id.'],
-  ['finding.json', 'The finding as computed: its explanations and search limits.'],
+  [
+    'manifest.json',
+    'Every other file with its SHA-256 digest, and what was exported.',
+  ],
+  [
+    'signature.json',
+    'Ed25519 signature over the manifest, with the signing key id.',
+  ],
+  [
+    'finding.json',
+    'The finding as computed: its explanations and search limits.',
+  ],
   ['scenario.json', 'The decisions and assumptions it was computed under.'],
   ['artifacts.json', 'For each original: case, filename, kind and source.'],
-  ['originals/<sha256>', 'The original bytes of every document in the workspace.'],
+  [
+    'originals/<sha256>',
+    'The original bytes of every document in the workspace.',
+  ],
 ]
 
 function publicKeyUrl(): string {
   const base = import.meta.env.VITE_API_BASE ?? ''
   try {
-    return new URL(`${base}/api/receipts/public-key`, window.location.origin).toString()
+    return new URL(
+      `${base}/api/receipts/public-key`,
+      window.location.origin,
+    ).toString()
   } catch {
     return `${base}/api/receipts/public-key`
   }
@@ -47,6 +62,26 @@ function saveBlob(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
 
+async function signingKeyFingerprint() {
+  const pem = await inv.publicKey()
+  const base64 = pem.replace(/-----[^-]+-----/g, '').replace(/\s/g, '')
+  const der = Uint8Array.from(atob(base64), (character) =>
+    character.charCodeAt(0),
+  )
+  const key = await crypto.subtle.importKey(
+    'spki',
+    der,
+    { name: 'Ed25519' },
+    true,
+    ['verify'],
+  )
+  const raw = await crypto.subtle.exportKey('raw', key)
+  const digest = await crypto.subtle.digest('SHA-256', raw)
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('')
+}
+
 export default function ExportPanel({
   workspaceId,
   findingKey,
@@ -61,12 +96,17 @@ export default function ExportPanel({
   revision: number
 }) {
   const [exporting, setExporting] = useState(false)
-  const [exported, setExported] = useState<{ filename: string; bytes: number; at: number } | null>(null)
+  const [exported, setExported] = useState<{
+    filename: string
+    bytes: number
+    at: number
+  } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const audit = useScopedAsync(() => inv.auditChain(), scope, [revision])
+  const signingKey = useScopedAsync(signingKeyFingerprint, scope, [revision])
 
-  const filename = exported?.filename ?? `netintel-${findingKey}-v${version ?? 'N'}.zip`
+  const filename =
+    exported?.filename ?? `netintel-${findingKey}-v${version ?? 'N'}.zip`
   const keyUrl = publicKeyUrl()
   const command = [
     '# 1. Fetch the public key through a channel you trust, apart from the package',
@@ -79,7 +119,10 @@ export default function ExportPanel({
     setExporting(true)
     setExportError(null)
     try {
-      const { blob, filename: name } = await inv.exportFinding(workspaceId, findingKey)
+      const { blob, filename: name } = await inv.exportFinding(
+        workspaceId,
+        findingKey,
+      )
       saveBlob(blob, name)
       setExported({ filename: name, bytes: blob.size, at: Date.now() })
     } catch (error) {
@@ -89,46 +132,46 @@ export default function ExportPanel({
     }
   }
 
-  async function copyCommand() {
-    try {
-      await navigator.clipboard.writeText(command)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   return (
     <section className="space-y-3">
       <SectionHeading title="Export">
-        A signed package of this finding as it stands at version {version ?? '—'}, with everything needed to check
-        it and recompute it away from this system. Access is re-checked at the moment of export, and the export is
-        written to the audit log.
+        A signed package of this finding as it stands at version{' '}
+        {version ?? '—'}, with everything needed to check it and recompute it
+        away from this system. Access is re-checked at the moment of export, and
+        the export is written to the audit log.
       </SectionHeading>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <ActionButton variant="primary" onClick={() => void exportPackage()} disabled={exporting}>
+            <Button
+              variant="primary"
+              onClick={() => void exportPackage()}
+              disabled={exporting}
+            >
               {exporting ? 'Signing…' : 'Export signed package'}
-            </ActionButton>
+            </Button>
             {exported && (
-              <span role="status" className="text-[12px] text-ink-400">
-                Saved <span className="font-mono text-ink-200">{exported.filename}</span> ·{' '}
-                <span className="readout">{formatBytes(exported.bytes)}</span> · {formatDateTime(exported.at)}
+              <span role="status" className="text-xs text-body">
+                Saved{' '}
+                <span className="font-mono text-body">{exported.filename}</span>{' '}
+                · <span className="numeric">{formatBytes(exported.bytes)}</span>{' '}
+                · {formatDateTime(exported.at)}
               </span>
             )}
           </div>
           {exportError && <ErrorNote message={exportError} />}
 
           <div>
-            <Legend>Inside the package</Legend>
-            <dl className="mt-1.5 divide-y divide-rule border hairline">
+            <FieldLabel>Inside the package</FieldLabel>
+            <dl className="mt-1.5 divide-y divide-border border border-border">
               {CONTENTS.map(([name, what]) => (
-                <div key={name} className="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)] gap-3 px-3 py-1.5">
-                  <dt className="font-mono text-[11.5px] text-ink-200">{name}</dt>
-                  <dd className="text-[12px] text-ink-400">{what}</dd>
+                <div
+                  key={name}
+                  className="grid gap-1 px-3 py-2 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:gap-3"
+                >
+                  <dt className="font-mono text-xs text-body">{name}</dt>
+                  <dd className="text-xs text-body">{what}</dd>
                 </div>
               ))}
             </dl>
@@ -136,37 +179,76 @@ export default function ExportPanel({
 
           <div>
             <div className="flex items-center justify-between gap-2">
-              <Legend>Independent check</Legend>
-              <ActionButton variant="link" onClick={() => void copyCommand()}>
-                {copied ? 'Copied' : 'Copy commands'}
-              </ActionButton>
+              <FieldLabel>Independent check</FieldLabel>
+              <CopyButton value={command} label="Copy commands" />
             </div>
-            <pre className="relative mt-1.5 overflow-x-auto border hairline bg-ink-950 px-3 py-2 font-mono text-[11.5px] leading-relaxed text-ink-200">
+            <pre
+              tabIndex={0}
+              aria-label="Independent verification commands"
+              className="relative mt-1.5 overflow-x-auto border border-border bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-body"
+            >
               {command}
             </pre>
-            <p className="mt-1.5 text-[11.5px] text-ink-500">
+            <p className="mt-1.5 text-xs text-muted">
               Public key:{' '}
-              <a href={keyUrl} target="_blank" rel="noreferrer" className="font-mono text-ink-200 underline decoration-ink-700 underline-offset-2 hover:text-signal">
+              <a
+                href={keyUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="break-all font-mono text-body underline decoration-muted underline-offset-2 hover:text-primary"
+              >
                 {keyUrl}
               </a>
-              . Exit status 0 only when integrity is verified and, with <span className="font-mono">--reproduce</span>,
-              the finding recomputes to the same result.
+              . Exit status 0 only when integrity is verified and, with{' '}
+              <span className="font-mono">--reproduce</span>, the finding
+              recomputes to the same result.
             </p>
           </div>
 
-          <p className="text-[12px] text-ink-400">
-            <span className="legend mr-2">Audit log</span>
+          <div className="rounded-md border border-border p-3">
+            <FieldLabel>Server signing key · Ed25519</FieldLabel>
+            {signingKey.loading && <LoadingState label="Reading public key" />}
+            {signingKey.error && <ErrorNote message={signingKey.error} />}
+            {signingKey.data && (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs text-body">
+                  Key ID{' '}
+                  <code className="font-mono text-heading">
+                    {signingKey.data.slice(0, 16)}
+                  </code>
+                </p>
+                <p className="break-all font-mono text-xs text-muted">
+                  SHA-256 {signingKey.data}
+                </p>
+                <CopyButton value={signingKey.data} label="Copy fingerprint" />
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-body">
+            <span className="field-label mr-2">Audit log</span>
             {audit.loading && !audit.data && 'checking…'}
-            {audit.error && <span className="text-sev-high">could not be checked: {audit.error}</span>}
+            {audit.error && (
+              <span className="text-sev-high">
+                could not be checked: {audit.error}
+              </span>
+            )}
             {audit.data &&
               (audit.data.intact ? (
                 <>
-                  hash chain intact · <span className="readout">{audit.data.events}</span> events · head{' '}
-                  <span className="readout">{audit.data.head.slice(0, 12)}…</span>
+                  hash chain intact ·{' '}
+                  <span className="numeric">{audit.data.events}</span> events ·
+                  head{' '}
+                  <span className="numeric">
+                    {audit.data.head.slice(0, 12)}…
+                  </span>
                 </>
               ) : (
                 <span className="text-sev-high">
-                  hash chain broken at event <span className="readout">{audit.data.broken_at ?? 'unknown'}</span>
+                  hash chain broken at event{' '}
+                  <span className="numeric">
+                    {audit.data.broken_at ?? 'unknown'}
+                  </span>
                 </span>
               ))}
           </p>
@@ -201,19 +283,20 @@ function PackageCheck() {
   }
 
   return (
-    <div className="space-y-3 border hairline bg-ink-950/60 p-3">
+    <div className="min-w-0 space-y-3 border border-border bg-surface/60 p-3">
       <div>
-        <Legend>Check a package</Legend>
-        <p className="mt-1 text-[12px] leading-relaxed text-ink-500">
-          Convenience check against this server's own key. It cannot vouch for a package this same server could
-          have re-signed; for an independent check, use the command with a key you obtained separately.
+        <FieldLabel>Check a package</FieldLabel>
+        <p className="mt-1 text-xs leading-relaxed text-muted">
+          Convenience check against this server's own key. It cannot vouch for a
+          package this same server could have re-signed; for an independent
+          check, use the command with a key you obtained separately.
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <label
           htmlFor={inputId}
-          className="inline-flex cursor-pointer items-center border border-[color:var(--rule-color)] px-2.5 py-1 font-cond text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-200 transition-colors focus-within:border-signal hover:border-signal hover:text-signal"
+          className="inline-flex cursor-pointer items-center border border-[color:var(--color-border)] px-2.5 py-1 text-xs font-semibold text-body transition-colors focus-within:border-primary hover:border-primary hover:text-primary"
         >
           {file ? 'Choose another' : 'Choose package (.zip)'}
           <input
@@ -228,42 +311,54 @@ function PackageCheck() {
             }}
           />
         </label>
-        <span className="min-w-0 truncate font-mono text-[11.5px] text-ink-400">
+        <span className="min-w-0 truncate font-mono text-xs text-body">
           {file ? `${file.name} · ${formatBytes(file.size)}` : 'No file chosen'}
         </span>
       </div>
 
-      <label className="flex items-start gap-2 text-[12.5px] text-ink-200">
+      <label className="flex items-start gap-2 text-sm text-body">
         <input
           type="checkbox"
           checked={reproduce}
           onChange={(event) => setReproduce(event.target.checked)}
-          className="mt-0.5 accent-signal"
+          className="mt-0.5 accent-primary"
         />
         <span>
           Also recompute the finding from the included originals
-          <span className="block text-[11px] text-ink-500">Slower: re-extracts every original from scratch.</span>
+          <span className="block text-xs text-muted">
+            Slower: re-extracts every original from scratch.
+          </span>
         </span>
       </label>
 
-      <ActionButton onClick={() => void check()} disabled={!file || checking}>
+      <Button onClick={() => void check()} disabled={!file || checking}>
         {checking ? 'Checking…' : 'Check package'}
-      </ActionButton>
+      </Button>
 
-      {checking && <Spinner label={reproduce ? 'Verifying and recomputing' : 'Verifying'} />}
+      {checking && (
+        <LoadingState
+          label={reproduce ? 'Verifying and recomputing' : 'Verifying'}
+        />
+      )}
       {error && <ErrorNote message={error} />}
       {report && <VerifyResult report={report} />}
     </div>
   )
 }
 
-const INTEGRITY_TONE: Record<VerifyReport['integrity'], 'supported' | 'signal' | 'muted'> = {
+const INTEGRITY_TONE: Record<
+  VerifyReport['integrity'],
+  'supported' | 'signal' | 'muted'
+> = {
   verified: 'supported',
   failed: 'signal',
   unchecked: 'muted',
 }
 
-const REPRODUCTION_TONE: Record<VerifyReport['reproduction'], 'supported' | 'signal' | 'muted'> = {
+const REPRODUCTION_TONE: Record<
+  VerifyReport['reproduction'],
+  'supported' | 'signal' | 'muted'
+> = {
   reproduced: 'supported',
   mismatch: 'signal',
   'not possible': 'muted',
@@ -271,41 +366,64 @@ const REPRODUCTION_TONE: Record<VerifyReport['reproduction'], 'supported' | 'sig
 }
 
 function VerifyResult({ report }: { report: VerifyReport }) {
-  const status = report.status === 'supported' || report.status === 'lead' || report.status === 'unsupported'
-    ? statusLabel(report.status)
-    : report.status
+  const status =
+    report.status === 'supported' ||
+    report.status === 'lead' ||
+    report.status === 'unsupported'
+      ? statusLabel(report.status)
+      : report.status
   return (
     <div role="status" className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Tag tone={INTEGRITY_TONE[report.integrity]}>Integrity: {report.integrity}</Tag>
-        <Tag tone={REPRODUCTION_TONE[report.reproduction]}>Reproduction: {report.reproduction}</Tag>
+        <Chip tone={INTEGRITY_TONE[report.integrity]}>
+          Integrity: {report.integrity}
+        </Chip>
+        <Chip tone={REPRODUCTION_TONE[report.reproduction]}>
+          Reproduction: {report.reproduction}
+        </Chip>
       </div>
       {(report.title || report.finding) && (
-        <p className="text-[12.5px] text-ink-200">
+        <p className="text-sm text-body">
           {report.title ?? report.finding}
-          {status && <span className="text-ink-500"> · {status}</span>}
-          {report.exported_at && <span className="text-ink-500"> · exported {formatDateTime(report.exported_at)}</span>}
+          {status && <span className="text-muted"> · {status}</span>}
+          {report.exported_at && (
+            <span className="text-muted">
+              {' '}
+              · exported {formatDateTime(report.exported_at)}
+            </span>
+          )}
         </p>
       )}
-      <ul className="divide-y divide-rule border hairline">
+      <ul className="divide-y divide-border rounded-lg border border-border">
         {report.checks.map((check, index) => (
-          <li key={`${check.check}-${index}`} className="flex items-start gap-2.5 px-2.5 py-1.5 text-[12px]">
+          <li
+            key={`${check.check}-${index}`}
+            className="flex items-start gap-2.5 px-2.5 py-1.5 text-xs"
+          >
             <span
-              className={`readout w-8 shrink-0 text-center text-[11px] ${
-                check.ok === true ? 'text-status-supported' : check.ok === false ? 'text-signal' : 'text-ink-500'
+              className={`numeric w-8 shrink-0 text-center text-xs ${
+                check.ok === true
+                  ? 'text-status-supported'
+                  : check.ok === false
+                    ? 'text-primary'
+                    : 'text-muted'
               }`}
             >
               {check.ok === true ? 'ok' : check.ok === false ? 'BAD' : '—'}
             </span>
             <span className="min-w-0">
-              <span className="text-ink-200">{check.check}</span>
-              <span className="text-ink-500">: {check.detail}</span>
+              <span className="text-body">{check.check}</span>
+              <span className="text-muted">: {check.detail}</span>
             </span>
           </li>
         ))}
-        {report.checks.length === 0 && <li className="px-2.5 py-1.5 text-[12px] text-ink-500">No checks reported.</li>}
+        {report.checks.length === 0 && (
+          <li className="px-2.5 py-1.5 text-xs text-muted">
+            No checks reported.
+          </li>
+        )}
       </ul>
-      <Note>{report.scope}</Note>
+      <Callout>{report.scope}</Callout>
     </div>
   )
 }

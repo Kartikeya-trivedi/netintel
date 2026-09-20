@@ -1,0 +1,7 @@
+# Keep local credentials and build artifacts out of CLI uploads; Vercel builds from source.
+.env*
+.vercel
+node_modules
+dist
+*.tsbuildinfo
+vite.config.d.ts

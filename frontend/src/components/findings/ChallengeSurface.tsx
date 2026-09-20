@@ -7,10 +7,15 @@ import {
   type ScenarioDefinition,
   type ScenarioRun,
 } from '../../api/investigation'
-import { errorMessage, formatLocator, plural, shortCaseName } from '../../lib/format'
+import {
+  errorMessage,
+  formatLocator,
+  plural,
+  shortCaseName,
+} from '../../lib/format'
 import { useScopedAsync } from '../../lib/useApi'
-import { ErrorNote, Legend, Segmented, Spinner } from '../Instrument'
-import { ActionButton, KindLabel, Note, SectionHeading, Tag } from './Controls'
+import { ErrorNote, FieldLabel, Segmented, LoadingState } from '../../ui'
+import { Button, KindLabel, Callout, SectionHeading, Chip } from './shared'
 import { useFindingTables } from './FindingTables'
 import ScenarioComparison from './ScenarioComparison'
 import SensitivityPanel from './SensitivityPanel'
@@ -45,7 +50,10 @@ type RunState =
   | { status: 'done'; run: ScenarioRun }
   | { status: 'error'; name: string; message: string }
 
-const HOPS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))
+const HOPS = [1, 2, 3, 4, 5].map((n) => ({
+  value: String(n),
+  label: String(n),
+}))
 
 export default function ChallengeSurface({
   detail,
@@ -67,7 +75,10 @@ export default function ChallengeSurface({
   onTry: (name: string, overrides: Partial<ScenarioDefinition>) => void
 }) {
   const { evidence, people, artifacts } = useFindingTables()
-  const baseline = useMemo(() => baselineDefinition(detail.scenario), [detail.scenario])
+  const baseline = useMemo(
+    () => baselineDefinition(detail.scenario),
+    [detail.scenario],
+  )
   const [draft, setDraft] = useState<ScenarioDefinition>(baseline)
   const [name, setName] = useState('')
   const [runState, setRunState] = useState<RunState>({ status: 'idle' })
@@ -77,25 +88,40 @@ export default function ChallengeSurface({
   const nameId = useId()
   const windowId = useId()
 
-  const families = useScopedAsync(() => inv.families(workspaceId), scope, [revision])
+  const families = useScopedAsync(() => inv.families(workspaceId), scope, [
+    revision,
+  ])
   const familyLabel = useCallback(
     (key: string) =>
-      families.data?.find((family) => family.key === key)?.label ?? detail.families[key]?.label ?? key,
+      families.data?.find((family) => family.key === key)?.label ??
+      detail.families[key]?.label ??
+      key,
     [families.data, detail.families],
   )
-  const autoName = sentence(describeScenario(draft, baseline, familyLabel), 'Baseline assumptions')
+  const autoName = sentence(
+    describeScenario(draft, baseline, familyLabel),
+    'Baseline assumptions',
+  )
 
   const execute = useCallback(
     async (definition: ScenarioDefinition, label: string) => {
       const current = ++generation.current
       setRunState({ status: 'running', name: label })
       // In one column the result sits below a long form; bring it into view.
-      resultRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      resultRef.current?.scrollIntoView({
+        block: 'nearest',
+        behavior: 'smooth',
+      })
       try {
         const run = await inv.runScenario(workspaceId, label, definition)
         if (current === generation.current) setRunState({ status: 'done', run })
       } catch (error) {
-        if (current === generation.current) setRunState({ status: 'error', name: label, message: errorMessage(error) })
+        if (current === generation.current)
+          setRunState({
+            status: 'error',
+            name: label,
+            message: errorMessage(error),
+          })
       }
     },
     [workspaceId],
@@ -117,23 +143,35 @@ export default function ChallengeSurface({
   // Claims (and any record a conflict names) can be disputed hypothetically,
   // a passage at a time, the way a recorded review would apply.
   const passageOptions = useMemo(() => {
-    const contraryKeys = new Set(detail.contrary.flatMap((item) => item.evidence))
+    const contraryKeys = new Set(
+      detail.contrary.flatMap((item) => item.evidence),
+    )
     const keys = Object.values(evidence)
       .filter((item) => item.kind === 'claim' || contraryKeys.has(item.key))
       .map((item) => item.key)
     return passages(keys, evidence).sort((a, b) =>
-      (a.lead?.document?.filename ?? '').localeCompare(b.lead?.document?.filename ?? ''),
+      (a.lead?.document?.filename ?? '').localeCompare(
+        b.lead?.document?.filename ?? '',
+      ),
     )
   }, [detail.contrary, evidence])
 
-  const listedAssertions = useMemo(() => new Set(passageOptions.flatMap((p) => p.members)), [passageOptions])
-  const strayAssertions = Object.keys(draft.assertions).filter((key) => !listedAssertions.has(key))
+  const listedAssertions = useMemo(
+    () => new Set(passageOptions.flatMap((p) => p.members)),
+    [passageOptions],
+  )
+  const strayAssertions = Object.keys(draft.assertions).filter(
+    (key) => !listedAssertions.has(key),
+  )
   const strayGroupings = Object.keys(draft.groupings)
 
   // The families the explanations draw on; the response tables also carry
   // families that only identity or conflict evidence mentions.
   const usedFamilies = useMemo(
-    () => new Set(detail.explanations.flatMap((explanation) => explanation.families)),
+    () =>
+      new Set(
+        detail.explanations.flatMap((explanation) => explanation.families),
+      ),
     [detail.explanations],
   )
   const groupedFamilies = useMemo(() => {
@@ -142,7 +180,9 @@ export default function ChallengeSurface({
       if (onlyUsed && !usedFamilies.has(family.key)) continue
       const code =
         artifacts?.get(family.origin)?.case ??
-        family.documents.map((doc) => artifacts?.get(doc)?.case).find(Boolean) ??
+        family.documents
+          .map((doc) => artifacts?.get(doc)?.case)
+          .find(Boolean) ??
         'Other'
       const list = byCase.get(code) ?? []
       list.push(family)
@@ -163,7 +203,10 @@ export default function ChallengeSurface({
     }))
   }
 
-  function setIdentity(key: string, value: 'recorded' | 'accepted' | 'rejected') {
+  function setIdentity(
+    key: string,
+    value: 'recorded' | 'accepted' | 'rejected',
+  ) {
     setDraft((current) => {
       const identity = { ...current.identity }
       if (value === 'recorded') delete identity[key]
@@ -203,8 +246,9 @@ export default function ChallengeSurface({
 
       <section className="space-y-3">
         <SectionHeading title="Scenario">
-          Change the assumptions and recompute every finding in the workspace. Nothing here is recorded in the
-          case file; runs are kept in the audit log. To record a decision, use Review.
+          Change the assumptions and recompute every finding in the workspace.
+          Nothing here is recorded in the case file; runs are kept in the audit
+          log. To record a decision, use Review.
         </SectionHeading>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
@@ -217,51 +261,70 @@ export default function ChallengeSurface({
           >
             <fieldset className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <legend className="legend">Source families to exclude</legend>
-                <label className="flex items-center gap-1.5 text-[11.5px] text-ink-400">
+                <legend className="field-label">
+                  Source families to exclude
+                </legend>
+                <label className="flex items-center gap-1.5 text-xs text-body">
                   <input
                     type="checkbox"
                     checked={onlyUsed}
                     onChange={(event) => setOnlyUsed(event.target.checked)}
-                    className="accent-signal"
+                    className="accent-primary"
                   />
                   Only those this finding uses
                 </label>
               </div>
-              {families.loading && !families.data && <Spinner label="Reading source families" />}
+              {families.loading && !families.data && (
+                <LoadingState label="Reading source families" />
+              )}
               {families.error && <ErrorNote message={families.error} />}
               {groupedFamilies.map(([code, list]) => {
                 const known = cases.find((item) => item.code === code)
                 return (
                   <div key={code}>
                     <p className="mb-1 flex items-baseline gap-2">
-                      <span className="readout text-[11px] text-ink-200">{code}</span>
-                      {known && <span className="text-[11.5px] text-ink-500">{shortCaseName(known.name, code)}</span>}
+                      <span className="numeric text-xs text-body">{code}</span>
+                      {known && (
+                        <span className="text-xs text-muted">
+                          {shortCaseName(known.name, code)}
+                        </span>
+                      )}
                     </p>
-                    <ul className="divide-y divide-rule border hairline">
+                    <ul className="divide-y divide-border rounded-lg border border-border">
                       {list.map((family) => {
-                        const checked = draft.exclude_families.includes(family.key)
+                        const checked = draft.exclude_families.includes(
+                          family.key,
+                        )
                         return (
                           <li key={family.key}>
                             <label
                               className={`flex cursor-pointer items-start gap-2.5 px-2.5 py-1.5 transition-colors ${
-                                checked ? 'bg-signal/10' : 'tint-hover'
+                                checked ? 'bg-primary/10' : 'hover:bg-subtle'
                               }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleFamily(family.key)}
-                                className="mt-0.5 accent-signal"
+                                className="mt-0.5 accent-primary"
                               />
                               <span className="min-w-0 flex-1">
-                                <span className="block break-all font-mono text-[11.5px] text-ink-100">{family.label}</span>
-                                <span className="block text-[11px] text-ink-500">
-                                  {plural(family.documents.length, 'document')} · {plural(family.statements, 'statement')} ·{' '}
-                                  {family.kinds.length ? family.kinds.map((kind) => `${kind}s`).join(' and ') : 'kind not stated'}
+                                <span className="block break-all font-mono text-xs text-heading">
+                                  {family.label}
+                                </span>
+                                <span className="block text-xs text-muted">
+                                  {plural(family.documents.length, 'document')}{' '}
+                                  · {plural(family.statements, 'statement')} ·{' '}
+                                  {family.kinds.length
+                                    ? family.kinds
+                                        .map((kind) => `${kind}s`)
+                                        .join(' and ')
+                                    : 'kind not stated'}
                                 </span>
                               </span>
-                              {usedFamilies.has(family.key) && <Tag tone="neutral">Used here</Tag>}
+                              {usedFamilies.has(family.key) && (
+                                <Chip tone="neutral">Used here</Chip>
+                              )}
                             </label>
                           </li>
                         )
@@ -271,25 +334,41 @@ export default function ChallengeSurface({
                 )
               })}
               {families.data && groupedFamilies.length === 0 && (
-                <p className="text-[12px] text-ink-500">No source families to list.</p>
+                <p className="text-xs text-muted">
+                  No source families to list.
+                </p>
               )}
             </fieldset>
 
             <fieldset className="space-y-2">
-              <legend className="legend">Identities this finding assumes</legend>
+              <legend className="field-label">
+                Identities this finding assumes
+              </legend>
               {detail.candidates.length === 0 ? (
-                <p className="text-[12px] text-ink-500">None: this finding joins no case references by identity.</p>
+                <p className="text-xs text-muted">
+                  None: this finding joins no case references by identity.
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {detail.candidates.map((candidate) => (
-                    <li key={candidate.key} className="border hairline px-2.5 py-2">
-                      <p className="text-[12.5px] text-ink-100">{candidateText(candidate, people)}</p>
-                      <p className="mb-1.5 text-[11px] text-ink-500">Now: {CANDIDATE_STATUS[candidate.status]}</p>
+                    <li
+                      key={candidate.key}
+                      className="border border-border px-2.5 py-2"
+                    >
+                      <p className="text-sm text-heading">
+                        {candidateText(candidate, people)}
+                      </p>
+                      <p className="mb-1.5 text-xs text-muted">
+                        Now: {CANDIDATE_STATUS[candidate.status]}
+                      </p>
                       <Segmented
                         options={[
                           { value: 'recorded' as const, label: 'As recorded' },
                           { value: 'accepted' as const, label: 'Same person' },
-                          { value: 'rejected' as const, label: 'Different people' },
+                          {
+                            value: 'rejected' as const,
+                            label: 'Different people',
+                          },
                         ]}
                         value={draft.identity[candidate.key] ?? 'recorded'}
                         onChange={(value) => setIdentity(candidate.key, value)}
@@ -301,37 +380,48 @@ export default function ChallengeSurface({
             </fieldset>
 
             <fieldset className="space-y-2">
-              <legend className="legend">Passages to dispute</legend>
-              <p className="text-[11.5px] text-ink-500">
-                Claims in this finding, and any record a conflict names. Disputing a passage disputes every
-                statement read from it.
+              <legend className="field-label">Passages to dispute</legend>
+              <p className="text-xs text-muted">
+                Claims in this finding, and any record a conflict names.
+                Disputing a passage disputes every statement read from it.
               </p>
               {passageOptions.length === 0 ? (
-                <p className="text-[12px] text-ink-500">No claims in this finding.</p>
+                <p className="text-xs text-muted">No claims in this finding.</p>
               ) : (
-                <ul className="divide-y divide-rule border hairline">
+                <ul className="divide-y divide-border rounded-lg border border-border">
                   {passageOptions.map((passage) => {
-                    const on = passage.members.every((key) => draft.assertions[key] === 'disputed')
+                    const on = passage.members.every(
+                      (key) => draft.assertions[key] === 'disputed',
+                    )
                     const lead = passage.lead
                     return (
                       <li key={passage.key}>
                         <label
                           className={`flex cursor-pointer items-start gap-2.5 px-2.5 py-1.5 transition-colors ${
-                            on ? 'bg-signal/10' : 'tint-hover'
+                            on ? 'bg-primary/10' : 'hover:bg-subtle'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={on}
-                            onChange={(event) => togglePassage(passage.members, event.target.checked)}
-                            className="mt-0.5 accent-signal"
+                            onChange={(event) =>
+                              togglePassage(
+                                passage.members,
+                                event.target.checked,
+                              )
+                            }
+                            className="mt-0.5 accent-primary"
                           />
                           {lead && <KindLabel kind={lead.kind} />}
                           <span className="min-w-0 flex-1">
-                            <span className="block text-[12px] text-ink-100">{lead?.summary ?? passage.members[0]}</span>
-                            <span className="block font-mono text-[10.5px] text-ink-500">
-                              {lead?.document?.filename ?? 'original not named'} · {formatLocator(lead?.locator)}
-                              {passage.members.length > 1 && ` · ${plural(passage.members.length, 'statement')}`}
+                            <span className="block text-xs text-heading">
+                              {lead?.summary ?? passage.members[0]}
+                            </span>
+                            <span className="block font-mono text-xs text-muted">
+                              {lead?.document?.filename ?? 'original not named'}{' '}
+                              · {formatLocator(lead?.locator)}
+                              {passage.members.length > 1 &&
+                                ` · ${plural(passage.members.length, 'statement')}`}
                             </span>
                           </span>
                         </label>
@@ -341,20 +431,32 @@ export default function ChallengeSurface({
                 </ul>
               )}
               {(strayAssertions.length > 0 || strayGroupings.length > 0) && (
-                <div className="flex flex-wrap items-center gap-2 text-[11.5px] text-ink-400">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-body">
                   <span>
                     Also in this scenario from a preset:{' '}
                     {[
-                      strayAssertions.length ? plural(strayAssertions.length, 'statement disputed', 'statements disputed') : '',
-                      strayGroupings.length ? plural(strayGroupings.length, 'source grouping overridden', 'source groupings overridden') : '',
+                      strayAssertions.length
+                        ? plural(
+                            strayAssertions.length,
+                            'statement disputed',
+                            'statements disputed',
+                          )
+                        : '',
+                      strayGroupings.length
+                        ? plural(
+                            strayGroupings.length,
+                            'source grouping overridden',
+                            'source groupings overridden',
+                          )
+                        : '',
                     ]
                       .filter(Boolean)
                       .join(', ')}
                     .
                   </span>
-                  <ActionButton variant="link" onClick={clearStray}>
+                  <Button variant="link" onClick={clearStray}>
                     Clear them
-                  </ActionButton>
+                  </Button>
                 </div>
               )}
             </fieldset>
@@ -362,7 +464,7 @@ export default function ChallengeSurface({
             <fieldset className="grid gap-4 sm:grid-cols-2">
               <legend className="sr-only">Search settings</legend>
               <div>
-                <label htmlFor={windowId} className="legend">
+                <label htmlFor={windowId} className="field-label">
                   Claim window
                 </label>
                 <div className="mt-1.5 flex items-center gap-3">
@@ -374,39 +476,55 @@ export default function ChallengeSurface({
                     step={1}
                     value={draft.claim_window_days}
                     onChange={(event) =>
-                      setDraft((current) => ({ ...current, claim_window_days: Number(event.target.value) }))
+                      setDraft((current) => ({
+                        ...current,
+                        claim_window_days: Number(event.target.value),
+                      }))
                     }
-                    className="min-w-0 flex-1 accent-signal"
+                    className="min-w-0 flex-1 accent-primary"
                   />
-                  <span className="readout w-16 text-right text-[13px] text-ink-100">±{draft.claim_window_days} d</span>
+                  <span className="numeric w-16 text-right text-sm text-heading">
+                    ±{draft.claim_window_days} d
+                  </span>
                 </div>
-                <p className="mt-1 text-[11px] text-ink-500">
-                  How far from its stated date a claim may reach. Baseline ±{baseline.claim_window_days} days.
+                <p className="mt-1 text-xs text-muted">
+                  How far from its stated date a claim may reach. Baseline ±
+                  {baseline.claim_window_days} days.
                 </p>
               </div>
               <div>
-                <span className="legend">Most hops in a chain</span>
+                <span className="field-label">Most hops in a chain</span>
                 <div className="mt-1.5">
                   <Segmented
                     options={HOPS}
                     value={String(draft.max_hops)}
-                    onChange={(value) => setDraft((current) => ({ ...current, max_hops: Number(value) }))}
+                    onChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        max_hops: Number(value),
+                      }))
+                    }
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-ink-500">Baseline {baseline.max_hops}.</p>
+                <p className="mt-1 text-xs text-muted">
+                  Baseline {baseline.max_hops}.
+                </p>
               </div>
-              <label className="flex items-start gap-2 text-[12.5px] text-ink-200 sm:col-span-2">
+              <label className="flex items-start gap-2 text-sm text-body sm:col-span-2">
                 <input
                   type="checkbox"
                   checked={draft.provisional_identities}
                   onChange={(event) =>
-                    setDraft((current) => ({ ...current, provisional_identities: event.target.checked }))
+                    setDraft((current) => ({
+                      ...current,
+                      provisional_identities: event.target.checked,
+                    }))
                   }
-                  className="mt-0.5 accent-signal"
+                  className="mt-0.5 accent-primary"
                 />
                 <span>
                   Include unconfirmed identities
-                  <span className="block text-[11px] text-ink-500">
+                  <span className="block text-xs text-muted">
                     {draft.provisional_identities
                       ? 'On: an unreviewed identity may join case references, and every route through one is a lead.'
                       : 'Off: only identities an analyst accepted may join case references.'}
@@ -415,14 +533,17 @@ export default function ChallengeSurface({
               </label>
             </fieldset>
 
-            <div className="space-y-2 border-t hairline pt-3">
-              <p className="text-[12px] text-ink-400">
-                <span className="legend mr-2">Changes</span>
-                {sentence(changes, 'None yet: this would recompute the baseline as it stands.')}
+            <div className="space-y-2 border-t border-border pt-3">
+              <p className="text-xs text-body">
+                <span className="field-label mr-2">Changes</span>
+                {sentence(
+                  changes,
+                  'None yet: this would recompute the baseline as it stands.',
+                )}
               </p>
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-0 flex-1">
-                  <label htmlFor={nameId} className="legend">
+                  <label htmlFor={nameId} className="field-label">
                     Name
                   </label>
                   <input
@@ -431,13 +552,13 @@ export default function ChallengeSurface({
                     onChange={(event) => setName(event.target.value)}
                     placeholder={autoName}
                     maxLength={200}
-                    className="mt-1 block w-full border hairline bg-ink-1000 px-2.5 py-1.5 text-[12.5px] text-ink-100 placeholder:text-ink-700"
+                    className="mt-1 block w-full border border-border bg-canvas px-2.5 py-1.5 text-sm text-heading placeholder:text-muted"
                   />
                 </div>
-                <ActionButton type="submit" variant="primary" disabled={running}>
+                <Button type="submit" variant="primary" disabled={running}>
                   {running ? 'Running…' : 'Run scenario'}
-                </ActionButton>
-                <ActionButton
+                </Button>
+                <Button
                   onClick={() => {
                     setDraft(baseline)
                     setName('')
@@ -445,7 +566,7 @@ export default function ChallengeSurface({
                   disabled={running || changes.length === 0}
                 >
                   Reset to baseline
-                </ActionButton>
+                </Button>
               </div>
             </div>
           </form>
@@ -454,18 +575,27 @@ export default function ChallengeSurface({
             ref={resultRef}
             className="min-w-0 scroll-mt-4 space-y-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-8rem)] xl:self-start xl:overflow-y-auto"
           >
-            <Legend>Compared with the baseline</Legend>
+            <FieldLabel>Compared with the baseline</FieldLabel>
             {runState.status === 'idle' && (
-              <Note>
-                Run a scenario, or pick a line in “What this finding needs” above, to see which findings change.
-              </Note>
+              <Callout>
+                Run a scenario, or pick a line in “What this finding needs”
+                above, to see which findings change.
+              </Callout>
             )}
-            {runState.status === 'running' && <Spinner label={`Recomputing: ${runState.name}`} />}
+            {runState.status === 'running' && (
+              <LoadingState label={`Recomputing: ${runState.name}`} />
+            )}
             {runState.status === 'error' && (
-              <ErrorNote message={`Scenario “${runState.name}” could not run: ${runState.message}. No result is shown.`} />
+              <ErrorNote
+                message={`Scenario “${runState.name}” could not run: ${runState.message}. No result is shown.`}
+              />
             )}
             {runState.status === 'done' && (
-              <ScenarioComparison run={runState.run} currentVersion={version} findingKey={detail.key} />
+              <ScenarioComparison
+                run={runState.run}
+                currentVersion={version}
+                findingKey={detail.key}
+              />
             )}
           </div>
         </div>

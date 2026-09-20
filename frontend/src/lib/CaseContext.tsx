@@ -26,10 +26,23 @@ interface CaseContextValue {
 
 const CaseContext = createContext<CaseContextValue | null>(null)
 
-export function CaseProvider({ children }: { children: ReactNode }) {
+export function CaseProvider({
+  children,
+  enabled = true,
+}: {
+  children: ReactNode
+  enabled?: boolean
+}) {
   const [activeId, setActiveCaseId] = useState<number | null>(null)
   const [version, setVersion] = useState(0)
-  const { data, error, loading, reload: reloadCases } = useAsync(() => api.listCases(), [])
+  // Keep the selected case when returning through the public page, without
+  // fetching private case data for a visitor who has only opened that page.
+  const {
+    data,
+    error,
+    loading,
+    reload: reloadCases,
+  } = useAsync(() => api.listCases(), [], { enabled })
 
   const reload = useCallback(() => {
     reloadCases()
@@ -40,7 +53,15 @@ export function CaseProvider({ children }: { children: ReactNode }) {
     const cases = data ?? []
     // Fall back to the first case so the console is never empty on load.
     const activeCase = cases.find((c) => c.id === activeId) ?? cases[0] ?? null
-    return { cases, activeCase, setActiveCaseId, loading, error, reload, version }
+    return {
+      cases,
+      activeCase,
+      setActiveCaseId,
+      loading,
+      error,
+      reload,
+      version,
+    }
   }, [data, activeId, loading, error, reload, version])
 
   return <CaseContext.Provider value={value}>{children}</CaseContext.Provider>

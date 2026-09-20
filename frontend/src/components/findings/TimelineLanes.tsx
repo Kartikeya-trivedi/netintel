@@ -1,9 +1,15 @@
 import { useId, useMemo, useState, type KeyboardEvent } from 'react'
 
 import type { Contrary } from '../../api/investigation'
-import { formatAmount, formatDate, formatDateTime, formatRange, plural } from '../../lib/format'
+import {
+  formatAmount,
+  formatDate,
+  formatDateTime,
+  formatRange,
+  plural,
+} from '../../lib/format'
 import { useElementWidth } from '../../lib/useElementWidth'
-import { Segmented } from '../Instrument'
+import { Segmented } from '../../ui'
 import { useFindingTables } from './FindingTables'
 import { readingsText } from './model'
 import {
@@ -45,7 +51,13 @@ import {
 
 // --- Component --------------------------------------------------------------------------
 
-export default function TimelineLanes({ timeline, contrary }: { timeline: Timeline; contrary: Contrary[] }) {
+export default function TimelineLanes({
+  timeline,
+  contrary,
+}: {
+  timeline: Timeline
+  contrary: Contrary[]
+}) {
   const { people } = useFindingTables()
   const [zoom, setZoom] = useState<Zoom>('events')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -53,23 +65,34 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const claimWindow = timeline.claim_window_days
 
-  const model = useMemo(() => buildModel(timeline, contrary, people), [timeline, contrary, people])
-  const layout = useMemo(() => (width > 0 ? layoutTimeline(model, width, zoom) : null), [model, width, zoom])
-  const selected = layout?.groups.find((group) => group.id === selectedId) ?? null
+  const model = useMemo(
+    () => buildModel(timeline, contrary, people),
+    [timeline, contrary, people],
+  )
+  const layout = useMemo(
+    () => (width > 0 ? layoutTimeline(model, width, zoom) : null),
+    [model, width, zoom],
+  )
+  const selected =
+    layout?.groups.find((group) => group.id === selectedId) ?? null
 
   const summary = `${plural(model.lanes.length, 'identifier')}, ${plural(model.bars.length, 'dated holding')}, ${plural(
     model.events.filter((e) => e.type === 'call').length,
     'call',
   )} and ${plural(model.events.filter((e) => e.type === 'transfer').length, 'transfer')}${
-    model.events.length ? `, ${formatRange(model.events[0].at, model.events[model.events.length - 1].at)}` : ''
+    model.events.length
+      ? `, ${formatRange(model.events[0].at, model.events[model.events.length - 1].at)}`
+      : ''
   }.`
 
   function step(event: KeyboardEvent<HTMLDivElement>) {
     if (!layout || layout.groups.length === 0) return
     const index = layout.groups.findIndex((group) => group.id === selectedId)
     let next = index
-    if (event.key === 'ArrowRight') next = index < 0 ? 0 : Math.min(layout.groups.length - 1, index + 1)
-    else if (event.key === 'ArrowLeft') next = index < 0 ? 0 : Math.max(0, index - 1)
+    if (event.key === 'ArrowRight')
+      next = index < 0 ? 0 : Math.min(layout.groups.length - 1, index + 1)
+    else if (event.key === 'ArrowLeft')
+      next = index < 0 ? 0 : Math.max(0, index - 1)
     else if (event.key === 'Home') next = 0
     else if (event.key === 'End') next = layout.groups.length - 1
     else if (event.key === 'Escape') {
@@ -82,7 +105,7 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
 
   if (model.lanes.length === 0) {
     return (
-      <p className="border-l-2 border-ink-800 px-3 py-2 text-[12.5px] text-ink-500">
+      <p className="border-l-2 border-line px-3 py-2 text-sm text-muted">
         No dated holdings, calls or transfers are attached to this finding.
       </p>
     )
@@ -93,7 +116,7 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TimelineLegend claimWindow={claimWindow} />
         <div className="flex items-center gap-2">
-          <span className="legend">Window</span>
+          <span className="field-label">Window</span>
           <Segmented
             options={[
               { value: 'events' as const, label: 'Around the events' },
@@ -114,7 +137,7 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
         role="group"
         aria-label={`Holdings and events timeline. ${summary} Use the left and right arrow keys to step through the events.`}
         onKeyDown={step}
-        className="mt-3 border hairline bg-ink-1000"
+        className="mt-3 border border-border bg-canvas"
       >
         {layout && (
           <svg
@@ -136,7 +159,11 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                   height="5"
                   patternTransform="rotate(45)"
                 >
-                  <rect width="1.6" height="5" style={{ fill: `var(--graph-c${i + 1})` }} />
+                  <rect
+                    width="1.6"
+                    height="5"
+                    style={{ fill: `var(--graph-c${i + 1})` }}
+                  />
                 </pattern>
               ))}
               <linearGradient
@@ -161,14 +188,45 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                 <stop offset="0" stopColor="white" stopOpacity="0" />
                 <stop offset="1" stopColor="white" stopOpacity="1" />
               </linearGradient>
-              <mask id={`${uid}-fade-r`} maskUnits="userSpaceOnUse" x="0" y="0" width={layout.width} height={layout.height}>
-                <rect x="0" y="0" width={layout.width} height={layout.height} fill={`url(#${uid}-fade-r-grad)`} />
+              <mask
+                id={`${uid}-fade-r`}
+                maskUnits="userSpaceOnUse"
+                x="0"
+                y="0"
+                width={layout.width}
+                height={layout.height}
+              >
+                <rect
+                  x="0"
+                  y="0"
+                  width={layout.width}
+                  height={layout.height}
+                  fill={`url(#${uid}-fade-r-grad)`}
+                />
               </mask>
-              <mask id={`${uid}-fade-l`} maskUnits="userSpaceOnUse" x="0" y="0" width={layout.width} height={layout.height}>
-                <rect x="0" y="0" width={layout.width} height={layout.height} fill={`url(#${uid}-fade-l-grad)`} />
+              <mask
+                id={`${uid}-fade-l`}
+                maskUnits="userSpaceOnUse"
+                x="0"
+                y="0"
+                width={layout.width}
+                height={layout.height}
+              >
+                <rect
+                  x="0"
+                  y="0"
+                  width={layout.width}
+                  height={layout.height}
+                  fill={`url(#${uid}-fade-l-grad)`}
+                />
               </mask>
               <clipPath id={`${uid}-plot`}>
-                <rect x={layout.plotLeft} y="0" width={layout.plotRight - layout.plotLeft} height={layout.height} />
+                <rect
+                  x={layout.plotLeft}
+                  y="0"
+                  width={layout.plotRight - layout.plotLeft}
+                  height={layout.height}
+                />
               </clipPath>
             </defs>
 
@@ -180,7 +238,9 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                 y={lane.top}
                 width={layout.width}
                 height={lane.height}
-                style={{ fill: index % 2 === 0 ? 'var(--tint)' : 'transparent' }}
+                style={{
+                  fill: index % 2 === 0 ? 'var(--color-subtle)' : 'transparent',
+                }}
               />
             ))}
 
@@ -192,17 +252,23 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                   x2={tick.x}
                   y1={AXIS - 6}
                   y2={layout.height}
-                  style={{ stroke: tick.major ? 'var(--tick-color)' : 'var(--grid-line)' }}
+                  style={{
+                    stroke: tick.major
+                      ? 'var(--color-line)'
+                      : 'var(--color-border)',
+                  }}
                   strokeWidth="1"
                 />
                 {tick.label && (
                   <text
                     x={tick.x + 3}
                     y={AXIS - 11}
-                    style={{ fill: 'var(--color-ink-500)', fontFamily: 'var(--font-cond)' }}
-                    fontSize="10.5"
+                    style={{
+                      fill: 'var(--color-muted)',
+                      fontFamily: 'var(--font-sans)',
+                    }}
+                    fontSize="12"
                     fontWeight="600"
-                    letterSpacing="0.04em"
                   >
                     {tick.label}
                   </text>
@@ -214,7 +280,7 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
               x2={layout.plotRight}
               y1={AXIS - 6}
               y2={AXIS - 6}
-              style={{ stroke: 'var(--rule-color)' }}
+              style={{ stroke: 'var(--color-border)' }}
             />
 
             {layout.lanes.map((lane) => (
@@ -222,26 +288,34 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                 <text
                   x="10"
                   y={lane.top + 17}
-                  style={{ fill: 'var(--color-ink-100)', fontFamily: 'var(--font-mono)' }}
-                  fontSize="11.5"
+                  style={{
+                    fill: 'var(--color-heading)',
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                  fontSize="12"
                 >
                   {lane.model.identifier}
                 </text>
                 <text
                   x="10"
                   y={lane.top + 31}
-                  style={{ fill: 'var(--color-ink-500)', fontFamily: 'var(--font-cond)' }}
-                  fontSize="9.5"
+                  style={{
+                    fill: 'var(--color-muted)',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                  fontSize="12"
                   fontWeight="600"
-                  letterSpacing="0.1em"
                 >
-                  {lane.model.kind.toUpperCase()}
+                  {lane.model.kind}
                 </text>
                 <text
                   x="10"
                   y={lane.top + 44}
-                  style={{ fill: 'var(--color-ink-500)', fontFamily: 'var(--font-sans)' }}
-                  fontSize="10"
+                  style={{
+                    fill: 'var(--color-muted)',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                  fontSize="12"
                 >
                   {lane.model.holders.length === 0
                     ? 'no holder on file'
@@ -255,8 +329,16 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                         x={band.x0}
                         y={lane.stripTop - NOTE + 2}
                         width={Math.max(2, band.x1 - band.x0)}
-                        height={lane.top + lane.height - (lane.stripTop - NOTE + 2) - 3}
-                        style={{ fill: 'var(--select-bg)', stroke: 'var(--color-signal)' }}
+                        height={
+                          lane.top +
+                          lane.height -
+                          (lane.stripTop - NOTE + 2) -
+                          3
+                        }
+                        style={{
+                          fill: 'var(--color-primary-soft)',
+                          stroke: 'var(--color-primary)',
+                        }}
                         fillOpacity="0.45"
                         strokeOpacity="0.7"
                         strokeDasharray="3 2"
@@ -264,8 +346,11 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                       <text
                         x={band.labelX}
                         y={lane.stripTop - 3}
-                        style={{ fill: 'var(--color-signal)', fontFamily: 'var(--font-cond)' }}
-                        fontSize="10"
+                        style={{
+                          fill: 'var(--color-primary)',
+                          fontFamily: 'var(--font-sans)',
+                        }}
+                        fontSize="12"
                         fontWeight="600"
                       >
                         {band.label}
@@ -274,7 +359,12 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                   ))}
 
                   {lane.bars.map((bar) => (
-                    <TimelineBar key={bar.key} bar={bar} uid={uid} claimWindow={claimWindow} />
+                    <TimelineBar
+                      key={bar.key}
+                      bar={bar}
+                      uid={uid}
+                      claimWindow={claimWindow}
+                    />
                   ))}
                 </g>
               </g>
@@ -285,42 +375,60 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
                 key={group.id}
                 group={group}
                 selected={group.id === selectedId}
-                onSelect={() => setSelectedId(group.id === selectedId ? null : group.id)}
+                onSelect={() =>
+                  setSelectedId(group.id === selectedId ? null : group.id)
+                }
               />
             ))}
           </svg>
         )}
         {!layout && width > 0 && (
-          <p className="px-3 py-4 text-[12.5px] text-ink-500">Nothing on this finding carries a date to place.</p>
+          <p className="px-3 py-4 text-sm text-muted">
+            Nothing on this finding carries a date to place.
+          </p>
         )}
       </div>
 
-      <div aria-live="polite" className="mt-2 min-h-[2.5rem] border-l-2 border-ink-800 px-3 py-1.5">
+      <div
+        aria-live="polite"
+        className="mt-2 min-h-[2.5rem] border-l-2 border-line px-3 py-1.5"
+      >
         {selected ? (
           <div>
-            <p className="text-[12.5px] text-ink-200">
-              {formatDate(selected.at)} · {plural(selected.events.length, selected.type === 'call' ? 'call' : 'transfer')} on{' '}
-              <span className="readout">{selected.identifier}</span>
-              {selected.ambiguous && <span className="ml-2 text-signal">read as more than one person</span>}
+            <p className="text-sm text-body">
+              {formatDate(selected.at)} ·{' '}
+              {plural(
+                selected.events.length,
+                selected.type === 'call' ? 'call' : 'transfer',
+              )}{' '}
+              on <span className="numeric">{selected.identifier}</span>
+              {selected.ambiguous && (
+                <span className="ml-2 text-primary">
+                  read as more than one person
+                </span>
+              )}
             </p>
             <ul className="mt-1 space-y-0.5">
               {selected.events.map((event) => (
-                <li key={event.key} className="font-mono text-[11px] leading-relaxed text-ink-400">
+                <li
+                  key={event.key}
+                  className="font-mono text-xs leading-relaxed text-body"
+                >
                   {eventLine(event)}
                 </li>
               ))}
             </ul>
           </div>
         ) : (
-          <p className="text-[12px] text-ink-500">
-            Select a tick, or focus the chart and use the arrow keys, to read each event and who it can be
-            attributed to.
+          <p className="text-xs text-muted">
+            Select a tick, or focus the chart and use the arrow keys, to read
+            each event and who it can be attributed to.
           </p>
         )}
       </div>
 
       {layout && layout.lanes.some((lane) => lane.outside > 0) && (
-        <p className="mt-2 text-[11.5px] text-ink-500">
+        <p className="mt-2 text-xs text-muted">
           {plural(
             layout.lanes.reduce((sum, lane) => sum + lane.outside, 0),
             'holding lies',
@@ -330,9 +438,13 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
         </p>
       )}
       {model.undated.length > 0 && (
-        <p className="mt-2 text-[11.5px] text-ink-500">
-          {plural(model.undated.length, 'holding has', 'holdings have')} no date and cannot be placed:{' '}
-          {model.undated.map((bar) => `${bar.person} (${bar.identifier}, ${bar.kind})`).join('; ')}.
+        <p className="mt-2 text-xs text-muted">
+          {plural(model.undated.length, 'holding has', 'holdings have')} no date
+          and cannot be placed:{' '}
+          {model.undated
+            .map((bar) => `${bar.person} (${bar.identifier}, ${bar.kind})`)
+            .join('; ')}
+          .
         </p>
       )}
 
@@ -341,7 +453,15 @@ export default function TimelineLanes({ timeline, contrary }: { timeline: Timeli
   )
 }
 
-function TimelineBar({ bar, uid, claimWindow }: { bar: PlacedBar; uid: string; claimWindow: number }) {
+function TimelineBar({
+  bar,
+  uid,
+  claimWindow,
+}: {
+  bar: PlacedBar
+  uid: string
+  claimWindow: number
+}) {
   const colour = `var(--graph-c${bar.colour})`
   const record = bar.kind === 'record'
   const width = Math.max(3, bar.x1 - bar.x0)
@@ -379,7 +499,10 @@ function TimelineBar({ bar, uid, claimWindow }: { bar: PlacedBar; uid: string; c
   if (bar.clippedRight) shape = <g mask={`url(#${uid}-fade-r)`}>{shape}</g>
   if (bar.clippedLeft) shape = <g mask={`url(#${uid}-fade-l)`}>{shape}</g>
 
-  const label = truncate(barLabel(bar, claimWindow), width - (bar.clippedLeft ? 10 : 8) - (bar.clippedRight ? FADE / 2 : 0))
+  const label = truncate(
+    barLabel(bar, claimWindow),
+    width - (bar.clippedLeft ? 10 : 8) - (bar.clippedRight ? FADE / 2 : 0),
+  )
 
   return (
     <g>
@@ -390,14 +513,14 @@ function TimelineBar({ bar, uid, claimWindow }: { bar: PlacedBar; uid: string; c
           x={bar.x0 + (bar.clippedLeft ? 8 : 6)}
           y={bar.y + BAR / 2 + 3.5}
           style={{
-            fill: 'var(--color-ink-100)',
-            fontFamily: 'var(--font-cond)',
-            stroke: 'var(--color-ink-1000)',
+            fill: 'var(--color-heading)',
+            fontFamily: 'var(--font-sans)',
+            stroke: 'var(--color-canvas)',
             paintOrder: 'stroke',
           }}
           strokeWidth="3"
           strokeLinejoin="round"
-          fontSize="10.5"
+          fontSize="12"
           fontWeight="600"
         >
           {label}
@@ -412,7 +535,16 @@ function StatedMark({ bar, colour }: { bar: PlacedBar; colour: string }) {
   if (bar.stated === null || bar.start === null || bar.end === null) return null
   const ratio = (bar.stated - bar.start) / (bar.end - bar.start)
   const x = bar.x0 + ratio * (bar.x1 - bar.x0)
-  return <line x1={x} x2={x} y1={bar.y - 2} y2={bar.y + BAR + 2} style={{ stroke: colour }} strokeWidth="2" />
+  return (
+    <line
+      x1={x}
+      x2={x}
+      y1={bar.y - 2}
+      y2={bar.y + BAR + 2}
+      style={{ stroke: colour }}
+      strokeWidth="2"
+    />
+  )
 }
 
 function EventMark({
@@ -424,7 +556,7 @@ function EventMark({
   selected: boolean
   onSelect: () => void
 }) {
-  const colour = group.ambiguous ? 'var(--color-signal)' : 'var(--color-ink-200)'
+  const colour = group.ambiguous ? 'var(--color-primary)' : 'var(--color-body)'
   const bottom = group.stripTop + STRIP - 3
   const middle = group.stripTop + STRIP / 2
   const count = group.events.length
@@ -443,7 +575,11 @@ function EventMark({
         x2={group.x}
         y1={group.stripTop + STRIP}
         y2={group.laneBottom - 3}
-        style={{ stroke: group.ambiguous ? 'var(--color-signal)' : 'var(--tick-color)' }}
+        style={{
+          stroke: group.ambiguous
+            ? 'var(--color-primary)'
+            : 'var(--color-line)',
+        }}
         strokeOpacity={group.ambiguous ? 0.5 : 1}
         strokeDasharray="1 3"
       />
@@ -454,7 +590,7 @@ function EventMark({
           width="14"
           height={STRIP - 2}
           fill="none"
-          style={{ stroke: 'var(--color-signal)' }}
+          style={{ stroke: 'var(--color-primary)' }}
           strokeWidth="1.5"
         />
       )}
@@ -472,7 +608,10 @@ function EventMark({
             cx={group.x}
             cy={bottom}
             r="2.6"
-            style={{ fill: group.unattributed ? 'var(--color-ink-1000)' : colour, stroke: colour }}
+            style={{
+              fill: group.unattributed ? 'var(--color-canvas)' : colour,
+              stroke: colour,
+            }}
             strokeWidth="1.2"
           />
         </>
@@ -483,7 +622,10 @@ function EventMark({
           width="7"
           height="7"
           transform={`rotate(45 ${group.x} ${middle})`}
-          style={{ fill: group.unattributed ? 'var(--color-ink-1000)' : colour, stroke: colour }}
+          style={{
+            fill: group.unattributed ? 'var(--color-canvas)' : colour,
+            stroke: colour,
+          }}
           strokeWidth="1.2"
         />
       )}
@@ -492,50 +634,96 @@ function EventMark({
           x={group.x + 4.5}
           y={group.stripTop + 9}
           style={{ fill: colour, fontFamily: 'var(--font-mono)' }}
-          fontSize="9"
+          fontSize="12"
         >
           ×{count}
         </text>
       )}
       {/* Generous hit area; the marks themselves are a few pixels wide. */}
-      <rect x={group.x - 6} y={group.stripTop} width="12" height={STRIP} fill="transparent" />
+      <rect
+        x={group.x - 12}
+        y={group.stripTop}
+        width="24"
+        height={STRIP}
+        fill="transparent"
+      />
     </g>
   )
 }
 
 function TimelineLegend({ claimWindow }: { claimWindow: number }) {
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-ink-400">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-body">
       <li className="flex items-center gap-1.5">
-        <span aria-hidden="true" className="h-2.5 w-6 border border-ink-400 bg-ink-400/25" />
+        <span
+          aria-hidden="true"
+          className="h-2.5 w-6 border border-body bg-body/25"
+        />
         Record of who held it
       </li>
       <li className="flex items-center gap-1.5">
-        <span aria-hidden="true" className="hatch h-2.5 w-6 border border-dashed border-ink-400 text-ink-400" />
+        <span
+          aria-hidden="true"
+          className="hatch h-2.5 w-6 border border-dashed border-body text-body"
+        />
         Claim: stated date ±{claimWindow} days assumed
       </li>
       <li className="flex items-center gap-1.5">
         <svg aria-hidden="true" width="10" height="14">
-          <line x1="5" x2="5" y1="1" y2="10" style={{ stroke: 'var(--color-ink-200)' }} strokeWidth="1.6" />
-          <circle cx="5" cy="10" r="2.6" style={{ fill: 'var(--color-ink-200)' }} />
+          <line
+            x1="5"
+            x2="5"
+            y1="1"
+            y2="10"
+            style={{ stroke: 'var(--color-body)' }}
+            strokeWidth="1.6"
+          />
+          <circle
+            cx="5"
+            cy="10"
+            r="2.6"
+            style={{ fill: 'var(--color-body)' }}
+          />
         </svg>
         Call
       </li>
       <li className="flex items-center gap-1.5">
         <svg aria-hidden="true" width="12" height="12">
-          <rect x="2.5" y="2.5" width="7" height="7" transform="rotate(45 6 6)" style={{ fill: 'var(--color-ink-200)' }} />
+          <rect
+            x="2.5"
+            y="2.5"
+            width="7"
+            height="7"
+            transform="rotate(45 6 6)"
+            style={{ fill: 'var(--color-body)' }}
+          />
         </svg>
         Transfer
       </li>
-      <li className="flex items-center gap-1.5 text-signal">
+      <li className="flex items-center gap-1.5 text-primary">
         <svg aria-hidden="true" width="10" height="14">
-          <line x1="5" x2="5" y1="1" y2="10" style={{ stroke: 'var(--color-signal)' }} strokeWidth="1.6" />
-          <circle cx="5" cy="10" r="2.6" style={{ fill: 'var(--color-signal)' }} />
+          <line
+            x1="5"
+            x2="5"
+            y1="1"
+            y2="10"
+            style={{ stroke: 'var(--color-primary)' }}
+            strokeWidth="1.6"
+          />
+          <circle
+            cx="5"
+            cy="10"
+            r="2.6"
+            style={{ fill: 'var(--color-primary)' }}
+          />
         </svg>
         Read as more than one person
       </li>
       <li className="flex items-center gap-1.5">
-        <span aria-hidden="true" className="h-2.5 w-6 bg-gradient-to-r from-ink-400/40 to-transparent" />
+        <span
+          aria-hidden="true"
+          className="h-2.5 w-6 bg-gradient-to-r from-body/40 to-transparent"
+        />
         Fades: open-ended, or runs past the window
       </li>
     </ul>
@@ -544,16 +732,22 @@ function TimelineLegend({ claimWindow }: { claimWindow: number }) {
 
 /** The same content as rows, for screen readers and for anyone who would
  *  rather read a table than a chart. */
-function TimelineTable({ model, claimWindow }: { model: Model; claimWindow: number }) {
+function TimelineTable({
+  model,
+  claimWindow,
+}: {
+  model: Model
+  claimWindow: number
+}) {
   return (
-    <details className="mt-3 border hairline">
-      <summary className="cursor-pointer px-3 py-2 font-cond text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400 hover:text-ink-200">
+    <details className="mt-3 border border-border">
+      <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-body hover:text-body">
         Read the timeline as a table
       </summary>
-      <div className="relative space-y-4 overflow-x-auto border-t hairline p-3">
-        <table className="w-full min-w-[560px] text-left text-[12px]">
-          <caption className="legend pb-1.5 text-left">Holdings</caption>
-          <thead className="text-ink-500">
+      <div className="relative space-y-4 overflow-x-auto border-t border-border p-3">
+        <table className="w-full min-w-[560px] text-left text-xs">
+          <caption className="field-label pb-1.5 text-left">Holdings</caption>
+          <thead className="text-muted">
             <tr>
               <th className="py-1 pr-3 font-normal">Identifier</th>
               <th className="py-1 pr-3 font-normal">Holder</th>
@@ -562,13 +756,16 @@ function TimelineTable({ model, claimWindow }: { model: Model; claimWindow: numb
               <th className="py-1 font-normal">Original</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-rule text-ink-200">
+          <tbody className="divide-y divide-border text-body">
             {model.lanes.flatMap((lane) =>
               lane.bars.map((bar) => (
                 <tr key={bar.key}>
-                  <td className="readout py-1 pr-3">{bar.identifier}</td>
+                  <td className="numeric py-1 pr-3">{bar.identifier}</td>
                   <td className="py-1 pr-3">{bar.person}</td>
-                  <td className="py-1 pr-3">{bar.kind === 'record' ? 'Record' : 'Claim'}{bar.active ? '' : ' (not counted)'}</td>
+                  <td className="py-1 pr-3">
+                    {bar.kind === 'record' ? 'Record' : 'Claim'}
+                    {bar.active ? '' : ' (not counted)'}
+                  </td>
                   <td className="py-1 pr-3">
                     {bar.kind === 'claim'
                       ? `stated ${formatDate(bar.stated)}, ±${claimWindow} days`
@@ -576,16 +773,20 @@ function TimelineTable({ model, claimWindow }: { model: Model; claimWindow: numb
                         ? `from ${formatDate(bar.start)}, open-ended`
                         : formatRange(bar.start, lastDay(bar.end))}
                   </td>
-                  <td className="py-1 font-mono text-[11px] text-ink-400">{bar.document ?? 'not named'}</td>
+                  <td className="py-1 font-mono text-xs text-body">
+                    {bar.document ?? 'not named'}
+                  </td>
                 </tr>
               )),
             )}
           </tbody>
         </table>
 
-        <table className="w-full min-w-[560px] text-left text-[12px]">
-          <caption className="legend pb-1.5 text-left">Events · {model.events.length}</caption>
-          <thead className="text-ink-500">
+        <table className="w-full min-w-[560px] text-left text-xs">
+          <caption className="field-label pb-1.5 text-left">
+            Events · {model.events.length}
+          </caption>
+          <thead className="text-muted">
             <tr>
               <th className="py-1 pr-3 font-normal">Time</th>
               <th className="py-1 pr-3 font-normal">Event</th>
@@ -593,17 +794,22 @@ function TimelineTable({ model, claimWindow }: { model: Model; claimWindow: numb
               <th className="py-1 font-normal">Original</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-rule text-ink-200">
+          <tbody className="divide-y divide-border text-body">
             {model.events.map((event) => (
               <tr key={event.key}>
-                <td className="whitespace-nowrap py-1 pr-3">{formatDateTime(event.at)}</td>
+                <td className="whitespace-nowrap py-1 pr-3">
+                  {formatDateTime(event.at)}
+                </td>
                 <td className="py-1 pr-3">
-                  {event.type === 'call' ? 'Call' : 'Transfer'} <span className="readout">{event.from}</span> →{' '}
-                  <span className="readout">{event.to}</span>
+                  {event.type === 'call' ? 'Call' : 'Transfer'}{' '}
+                  <span className="numeric">{event.from}</span> →{' '}
+                  <span className="numeric">{event.to}</span>
                   {event.amount !== null && ` · ${formatAmount(event.amount)}`}
                 </td>
                 <td className="py-1 pr-3">{readingsText(event.readings)}</td>
-                <td className="py-1 font-mono text-[11px] text-ink-400">{event.document ?? 'not named'}</td>
+                <td className="py-1 font-mono text-xs text-body">
+                  {event.document ?? 'not named'}
+                </td>
               </tr>
             ))}
           </tbody>

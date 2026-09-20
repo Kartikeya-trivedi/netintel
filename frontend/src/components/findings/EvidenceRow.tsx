@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import type { Artifact } from '../../api/investigation'
 import { formatLocator } from '../../lib/format'
-import { ActionButton, KindLabel, Tag } from './Controls'
+import { Button, KindLabel, Chip } from './shared'
 import { AssertionReviewForm } from './DecisionForms'
 import { useFindingTables } from './FindingTables'
 import { lineageText, reviewText } from './model'
@@ -15,11 +15,12 @@ import { lineageText, reviewText } from './model'
  *  different questions and a green light on one says nothing about the others.
  */
 
-const INTEGRITY: Record<Artifact['integrity'], { text: string; bad: boolean }> = {
-  intact: { text: 'Original intact', bad: false },
-  missing: { text: 'Original missing', bad: true },
-  altered: { text: 'Original altered', bad: true },
-}
+const INTEGRITY: Record<Artifact['integrity'], { text: string; bad: boolean }> =
+  {
+    intact: { text: 'Original intact', bad: false },
+    missing: { text: 'Original missing', bad: true },
+    altered: { text: 'Original altered', bad: true },
+  }
 
 export default function EvidenceRow({
   evidenceKey,
@@ -42,15 +43,19 @@ export default function EvidenceRow({
 
   if (!item) {
     return (
-      <div className="border-l-2 border-ink-800 px-3 py-1.5 text-[12px] text-ink-500">
-        Statement <span className="font-mono">{evidenceKey}</span> is referenced but not included in this response.
+      <div className="border-l-2 border-line px-3 py-1.5 text-xs text-muted">
+        Statement <span className="font-mono">{evidenceKey}</span> is referenced
+        but not included in this response.
       </div>
     )
   }
 
   const record = item.kind === 'record'
   const family = item.family ? families[item.family] : null
-  const artifact = item.document && artifacts ? artifacts.get(item.document.filename) : undefined
+  const artifact =
+    item.document && artifacts
+      ? artifacts.get(item.document.filename)
+      : undefined
   const integrity = artifact ? INTEGRITY[artifact.integrity] : null
   const review = reviewText(item.review)
 
@@ -58,59 +63,68 @@ export default function EvidenceRow({
     return (
       <div
         className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 border-l-2 py-1 pl-3 pr-1 ${
-          record ? 'border-ink-800' : 'border-dashed border-ink-800'
+          record ? 'border-line' : 'border-dashed border-line'
         } ${item.active ? '' : 'opacity-60'}`}
       >
         <KindLabel kind={item.kind} />
-        <span className="min-w-0 flex-1 text-[12px] leading-snug text-ink-200">{item.summary}</span>
-        <span className="font-mono text-[10.5px] text-ink-500">
-          {item.document?.filename ?? 'original not named'} · {formatLocator(item.locator)}
+        <span className="min-w-0 flex-1 text-xs leading-snug text-body">
+          {item.summary}
         </span>
-        {review.decided && <Tag tone="signal">{review.text}</Tag>}
-        {!item.active && <Tag tone="muted">Not counted here</Tag>}
-        {note && <span className="text-[10.5px] text-ink-500">{note}</span>}
+        <span className="font-mono text-xs text-muted">
+          {item.document?.filename ?? 'original not named'} ·{' '}
+          {formatLocator(item.locator)}
+        </span>
+        {review.decided && <Chip tone="signal">{review.text}</Chip>}
+        {!item.active && <Chip tone="muted">Not counted here</Chip>}
+        {note && <span className="text-xs text-muted">{note}</span>}
       </div>
     )
   }
 
   return (
     <div
-      className={`border-l-2 py-1.5 pl-3 pr-1 ${
-        record ? 'border-ink-700' : 'border-dashed border-ink-700'
-      } ${item.active ? '' : 'opacity-60'}`}
+      data-kind={item.kind}
+      className={`evidence-row ${item.active ? '' : 'opacity-60'}`}
     >
       <div className="flex flex-wrap items-start gap-x-2.5 gap-y-1">
         <KindLabel kind={item.kind} />
-        <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-ink-100">
+        <p className="min-w-0 flex-1 text-sm leading-snug text-heading">
           {item.summary}
-          {note && <span className="ml-2 text-[11px] text-ink-500">{note}</span>}
+          {note && <span className="ml-2 text-xs text-muted">{note}</span>}
         </p>
         <div className="flex flex-wrap items-center gap-1">
-          {review.decided && <Tag tone="signal">{review.text}</Tag>}
+          {review.decided && <Chip tone="signal">{review.text}</Chip>}
           {!item.active && (
-            <Tag tone="muted" title="Excluded, disputed or rejected: this statement does not count as support here.">
+            <Chip
+              tone="muted"
+              title="Excluded, disputed or rejected: this statement does not count as support here."
+            >
               Not counted here
-            </Tag>
+            </Chip>
           )}
         </div>
       </div>
 
       {showText && (
-        <blockquote className="mt-1 break-words font-mono text-[11.5px] leading-relaxed text-ink-400">
-          <span aria-hidden="true" className="text-ink-700">
+        <blockquote className="evidence-quote">
+          <span aria-hidden="true" className="text-muted">
             “
           </span>
-          {item.text || <span className="italic text-ink-500">no text captured</span>}
-          <span aria-hidden="true" className="text-ink-700">
+          {item.text || (
+            <span className="italic text-muted">no text captured</span>
+          )}
+          <span aria-hidden="true" className="text-muted">
             ”
           </span>
         </blockquote>
       )}
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-ink-500">
-        <span className="font-mono text-ink-400">{item.document?.filename ?? 'original not named'}</span>
-        {item.document && <span className="readout">{item.document.case}</span>}
-        <span className="readout">{formatLocator(item.locator)}</span>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+        <span className="font-mono text-body">
+          {item.document?.filename ?? 'original not named'}
+        </span>
+        {item.document && <span className="numeric">{item.document.case}</span>}
+        <span className="numeric">{formatLocator(item.locator)}</span>
         {item.document?.source_org && <span>{item.document.source_org}</span>}
         <span className={integrity?.bad ? 'text-sev-high' : undefined}>
           {integrity ? integrity.text : 'Integrity not checked'}
@@ -119,28 +133,39 @@ export default function EvidenceRow({
       </div>
 
       {(family || item.lineage) && (
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-ink-500">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
           {family && (
             <span>
-              <span className="legend mr-1.5">Origin</span>
+              <span className="field-label mr-1.5">Origin</span>
               {family.label}
             </span>
           )}
           {item.lineage && (
             <span title={item.lineage.note}>
               {lineageText(item.lineage)}
-              {item.lineage.note && <span className="text-ink-700"> ({item.lineage.note})</span>}
+              {item.lineage.note && (
+                <span className="text-muted"> ({item.lineage.note})</span>
+              )}
             </span>
           )}
         </div>
       )}
 
       {allowReview && !reviewing && (
-        <ActionButton variant="link" className="mt-0.5" onClick={() => setReviewing(true)}>
+        <Button
+          variant="link"
+          className="mt-0.5"
+          onClick={() => setReviewing(true)}
+        >
           Review this passage
-        </ActionButton>
+        </Button>
       )}
-      {reviewing && <AssertionReviewForm assertion={item.key} onClose={() => setReviewing(false)} />}
+      {reviewing && (
+        <AssertionReviewForm
+          assertion={item.key}
+          onClose={() => setReviewing(false)}
+        />
+      )}
     </div>
   )
 }

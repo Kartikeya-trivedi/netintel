@@ -46,20 +46,26 @@ export default function HighlightedText({
       }
 
       const entityType = typeByEntity?.get(mention.entity_id)
-      const decoration = entityType ? SPAN_COLORS[entityType] : 'decoration-ink-500'
+      const decoration = entityType
+        ? SPAN_COLORS[entityType]
+        : 'decoration-muted'
       const active = activeEntityId === mention.entity_id
 
       output.push(
-        <mark
+        <button
+          type="button"
           key={mention.id}
           onClick={() => onSelect?.(mention.entity_id)}
-          title={entityType ?? 'entity'}
-          className={`cursor-pointer bg-transparent underline decoration-2 underline-offset-[3px] transition-colors ${decoration} ${
-            active ? 'bg-signal/25 text-ink-100' : 'text-ink-100 tint-hover'
+          aria-pressed={active}
+          title={`${entityType?.replace(/_/g, ' ') ?? 'Entity'} · ${mention.surface_text}`}
+          className={`inline min-h-6 cursor-pointer rounded-sm px-0.5 text-left underline decoration-2 underline-offset-[3px] transition-colors ${decoration} ${
+            active
+              ? 'bg-primary/25 text-heading'
+              : 'text-heading hover:bg-subtle'
           }`}
         >
           {text.slice(mention.span_start, mention.span_end)}
-        </mark>,
+        </button>,
       )
       cursor = mention.span_end
     }
@@ -69,7 +75,7 @@ export default function HighlightedText({
   }, [text, mentions, typeByEntity, activeEntityId, onSelect])
 
   return (
-    <p className="whitespace-pre-wrap font-mono text-[13px] leading-[1.85] text-ink-400">
+    <p className="whitespace-pre-wrap text-sm leading-[1.95] text-body">
       {parts}
     </p>
   )

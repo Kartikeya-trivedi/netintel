@@ -1,152 +1,114 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-
 import { plural, shortCaseName } from '../../lib/format'
 import { useWorkspace } from '../../lib/WorkspaceContext'
-import { ErrorNote, Legend } from '../Instrument'
-import { ActionButton, RULE } from './Controls'
+import { ErrorNote } from '../../ui'
+import { Direction } from '../../ui/Identity'
+import { Button, BORDER } from './shared'
 
-/** The strip across the top of the findings views: which workspace, why it
- *  exists, which case files it compares, the decision version everything on
- *  screen was computed at, and who is asking.
- *
- *  The identity switcher is labelled for what it is. It sets a request header
- *  the demo server trusts; it is not a login.
- */
 export default function WorkspaceBar() {
   const ws = useWorkspace()
-  const { search } = useLocation()
+  const { search, pathname } = useLocation()
   const workspace = ws.workspace
-  const selectId = useId()
-  const workspaceSelectId = useId()
-
+  const contrast = pathname.endsWith('/contrast')
+  const contextRef = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    function dismissOutside(event: PointerEvent) {
+      const context = contextRef.current
+      if (
+        context?.open &&
+        event.target instanceof Node &&
+        !context.contains(event.target)
+      )
+        context.open = false
+    }
+    document.addEventListener('pointerdown', dismissOutside)
+    return () => document.removeEventListener('pointerdown', dismissOutside)
+  }, [])
   return (
-    <div className="shrink-0 border-b hairline bg-ink-1000">
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-4 pb-3 pt-3.5 sm:px-5">
-        <div className="min-w-0 max-w-2xl">
-          <div className="flex items-center gap-2">
-            <Legend>Cross-case workspace</Legend>
-            {ws.workspaces && ws.workspaces.length > 1 && (
-              <>
-                <label htmlFor={workspaceSelectId} className="sr-only">
-                  Workspace
-                </label>
-                <select
-                  id={workspaceSelectId}
-                  value={ws.workspaceId ?? ''}
-                  onChange={(event) => ws.selectWorkspace(Number(event.target.value))}
-                  className="border hairline bg-ink-950 px-1.5 py-0.5 font-mono text-[11px] text-ink-200"
-                >
-                  {ws.workspaces.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-          </div>
-          <h1 className="mt-1 truncate text-[17px] font-semibold tracking-tight text-ink-100">
-            {workspace?.name ?? (ws.workspaceLoading ? 'Opening workspace…' : 'No workspace open')}
-          </h1>
-          {workspace && (
-            <p className="mt-0.5 text-[12.5px] text-ink-400">
-              <span className="text-ink-500">Purpose:</span> {workspace.purpose}
-            </p>
-          )}
+    <header className="workspace-brief">
+      <div className="workspace-brief-main">
+        <div>
+          <h1>{contrast ? 'Compare methods' : 'Findings'}</h1>
         </div>
-
-        <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
-          {workspace && (
-            <div title="Every decision adds a version. Decisions must name the version they were made on.">
-              <Legend>Decision version</Legend>
-              <p className="readout mt-1 text-[20px] leading-none text-ink-100">{workspace.version}</p>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor={selectId} className="legend">
-              Demo identity — no authentication
-            </label>
-            <select
-              id={selectId}
-              value={ws.principal}
-              onChange={(event) => ws.switchPrincipal(event.target.value)}
-              className="min-w-[13rem] border hairline bg-ink-950 px-2 py-1 font-mono text-xs text-ink-200"
-            >
-              {ws.principals.map((person) => (
-                <option key={person.handle} value={person.handle}>
-                  {person.name} · {person.role}
-                </option>
-              ))}
-              {!ws.principals.some((person) => person.handle === ws.principal) && (
-                <option value={ws.principal}>{ws.principal}</option>
-              )}
-            </select>
-          </div>
-
-          <DemoControl hasWorkspace={Boolean(workspace)} />
-
-          <nav aria-label="Workspace views" className="inline-flex border hairline">
-            <ViewLink to={{ pathname: '/findings', search }} end label="Findings" />
-            <ViewLink to={{ pathname: '/findings/contrast', search }} label="Contrast" />
+        <div className="workspace-brief-tools">
+          <nav aria-label="Workspace views" className="view-switch">
+            {[
+              { path: '/findings', label: 'Findings' },
+              { path: '/findings/contrast', label: 'Contrast' },
+            ].map((item) => (
+              <NavLink key={item.path} to={{ pathname: item.path, search }} end>
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
+          {workspace ? (
+            <details
+              ref={contextRef}
+              className="workspace-context"
+              key={workspace.id}
+              onBlur={(event) => {
+                if (
+                  event.relatedTarget instanceof Node &&
+                  !event.currentTarget.contains(event.relatedTarget)
+                )
+                  event.currentTarget.open = false
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.currentTarget.open = false
+                  event.currentTarget.querySelector('summary')?.focus()
+                }
+              }}
+            >
+              <summary>
+                <span>{plural(workspace.cases.length, 'case file')}</span>
+                <span className="workspace-version">v{workspace.version}</span>
+                <Direction kind="down" />
+              </summary>
+              <div className="workspace-context-body">
+                <p className="field-label">
+                  Workspace details · Version {workspace.version}
+                </p>
+                <h2>{workspace.name}</h2>
+                <p>{workspace.purpose}</p>
+                <ul aria-label="Case files compared">
+                  {workspace.cases.map((item) => (
+                    <li key={item.id}>
+                      <span>{item.code}</span>
+                      <div>
+                        <strong>{shortCaseName(item.name, item.code)}</strong>
+                        {item.agency && <small>{item.agency}</small>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p className="workspace-context-counts">
+                  {plural(workspace.counts.originals, 'original')} ·{' '}
+                  {plural(workspace.counts.statements, 'statement')} ·{' '}
+                  {plural(workspace.counts.people, 'person', 'people')} ·{' '}
+                  {plural(
+                    workspace.counts.identity_candidates,
+                    'identity candidate',
+                  )}{' '}
+                  · {plural(workspace.counts.conflicts, 'attribution conflict')}{' '}
+                  · {plural(workspace.counts.findings, 'finding')}
+                </p>
+                <DemoControl hasWorkspace />
+              </div>
+            </details>
+          ) : (
+            <DemoControl hasWorkspace={false} />
+          )}
         </div>
       </div>
-
-      {workspace && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t hairline px-4 py-2 sm:px-5">
-          <ul className="flex flex-wrap gap-1.5" aria-label="Case files compared">
-            {workspace.cases.map((item) => (
-              <li
-                key={item.id}
-                title={item.agency ?? undefined}
-                className="flex items-baseline gap-1.5 border hairline bg-ink-950 px-2 py-0.5"
-              >
-                <span className="readout text-[11px] text-ink-100">{item.code}</span>
-                <span className="text-[12px] text-ink-400">{shortCaseName(item.name, item.code)}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="readout text-[10.5px] text-ink-500">
-            {plural(workspace.counts.originals, 'original')} · {plural(workspace.counts.statements, 'statement')} ·{' '}
-            {plural(workspace.counts.people, 'person', 'people')} · {plural(workspace.counts.identity_candidates, 'identity candidate')} ·{' '}
-            {plural(workspace.counts.conflicts, 'attribution conflict')} · {plural(workspace.counts.findings, 'finding')}
-          </p>
-        </div>
-      )}
-
       <DemoStatus />
       {ws.workspaceError && (
-        <div className="border-t hairline px-4 py-2 sm:px-5">
+        <div className="mt-3">
           <ErrorNote message={ws.workspaceError} />
         </div>
       )}
-    </div>
-  )
-}
-
-function ViewLink({
-  to,
-  label,
-  end = false,
-}: {
-  to: { pathname: string; search: string }
-  label: string
-  end?: boolean
-}) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        `px-2.5 py-1 font-cond text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors ${
-          isActive ? 'bg-signal text-ink-1000' : 'text-ink-500 hover:bg-ink-900 hover:text-ink-200'
-        }`
-      }
-    >
-      {label}
-    </NavLink>
+    </header>
   )
 }
 
@@ -158,22 +120,26 @@ function DemoControl({ hasWorkspace }: { hasWorkspace: boolean }) {
 
   if (demo.busy) {
     return (
-      <ActionButton disabled aria-busy="true">
+      <Button disabled aria-busy="true">
         Loading demo…
-      </ActionButton>
+      </Button>
     )
   }
   if (!hasWorkspace) {
     return (
-      <ActionButton variant="primary" onClick={() => void loadDemo()}>
+      <Button variant="primary" onClick={() => void loadDemo()}>
         Load demo
-      </ActionButton>
+      </Button>
     )
   }
   if (confirming) {
     return (
-      <div className="flex items-center gap-2" role="group" aria-label="Confirm demo reset">
-        <ActionButton
+      <div
+        className="flex items-center gap-2"
+        role="group"
+        aria-label="Confirm demo reset"
+      >
+        <Button
           variant="danger"
           onClick={() => {
             setConfirming(false)
@@ -181,14 +147,23 @@ function DemoControl({ hasWorkspace }: { hasWorkspace: boolean }) {
           }}
         >
           Reset — discards every decision
-        </ActionButton>
-        <ActionButton variant="link" onClick={() => setConfirming(false)}>
+        </Button>
+        <Button
+          variant="link"
+          onClick={(event) => {
+            setConfirming(false)
+            event.currentTarget
+              .closest('details')
+              ?.querySelector('summary')
+              ?.focus()
+          }}
+        >
           Cancel
-        </ActionButton>
+        </Button>
       </div>
     )
   }
-  return <ActionButton onClick={() => setConfirming(true)}>Reset demo</ActionButton>
+  return <Button onClick={() => setConfirming(true)}>Reset demo</Button>
 }
 
 /** Progress for the reload (about five seconds, with nothing to measure), and
@@ -204,42 +179,49 @@ function DemoStatus() {
   }, [demo.busy])
 
   if (demo.busy) {
-    const elapsed = demo.startedAt ? Math.max(0, (now - demo.startedAt) / 1000) : 0
+    const elapsed = demo.startedAt
+      ? Math.max(0, (now - demo.startedAt) / 1000)
+      : 0
     return (
-      <div role="status" className="border-t hairline px-4 py-2 sm:px-5">
+      <div role="status" className="border-t border-border px-4 py-2 sm:px-5">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[12.5px] text-ink-200">
-            Loading Operation Broken Mirror: preserving the originals, extracting statements, computing findings
+          <span className="text-sm text-body">
+            Loading Operation Broken Mirror: preserving the originals,
+            extracting statements, computing findings
           </span>
-          <span className="readout text-[11px] text-ink-500">{elapsed.toFixed(1)} s</span>
+          <span className="numeric text-xs text-muted">
+            {elapsed.toFixed(1)} s
+          </span>
         </div>
-        <div className="mt-1.5 h-[3px] overflow-hidden bg-ink-900">
-          <div className="indeterminate h-full w-2/5 bg-signal" />
+        <div className="mt-1.5 h-[3px] overflow-hidden bg-subtle">
+          <div className="indeterminate h-full w-2/5 bg-primary" />
         </div>
       </div>
     )
   }
   if (demo.error) {
     return (
-      <div className="flex items-start gap-3 border-t hairline px-4 py-2 sm:px-5">
+      <div className="flex items-start gap-3 border-t border-border px-4 py-2 sm:px-5">
         <div className="min-w-0 flex-1">
           <ErrorNote message={`The demo did not load: ${demo.error}`} />
         </div>
-        <ActionButton variant="link" onClick={dismissDemoNotice}>
+        <Button variant="link" onClick={dismissDemoNotice}>
           Dismiss
-        </ActionButton>
+        </Button>
       </div>
     )
   }
   if (demo.notice) {
     return (
-      <div className={`flex items-center justify-between gap-3 border-t ${RULE} bg-status-lead/10 px-4 py-2 sm:px-5`}>
-        <p role="status" className="text-[12.5px] text-ink-200">
+      <div
+        className={`flex items-center justify-between gap-3 border-t ${BORDER} bg-status-lead/10 px-4 py-2 sm:px-5`}
+      >
+        <p role="status" className="text-sm text-body">
           {demo.notice}
         </p>
-        <ActionButton variant="link" onClick={dismissDemoNotice}>
+        <Button variant="link" onClick={dismissDemoNotice}>
           Dismiss
-        </ActionButton>
+        </Button>
       </div>
     )
   }

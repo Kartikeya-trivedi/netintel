@@ -1,4 +1,9 @@
-import type { Contrary, FindingDetail, Kind, Person } from '../../api/investigation'
+import type {
+  Contrary,
+  FindingDetail,
+  Kind,
+  Person,
+} from '../../api/investigation'
 import {
   DAY_MS,
   IST_OFFSET_MS,
@@ -75,17 +80,21 @@ export interface Model {
 
 export const PALETTE = 8
 export const AXIS = 30
-export const STRIP = 20
-export const NOTE = 15
-export const BAR = 18
+export const STRIP = 26
+export const NOTE = 18
+export const BAR = 24
 const BAR_GAP = 4
 const LANE_PAD = 8
 const LANE_GAP = 8
 export const FADE = 36
 const RIGHT = 14
-const CHAR = 5.7
+const CHAR = 7
 
-export function buildModel(timeline: Timeline, contrary: Contrary[], people: Record<string, Person>): Model {
+export function buildModel(
+  timeline: Timeline,
+  contrary: Contrary[],
+  people: Record<string, Person>,
+): Model {
   const seenEvents = new Set<string>()
   const events: EventModel[] = []
   for (const event of timeline.events) {
@@ -120,7 +129,8 @@ export function buildModel(timeline: Timeline, contrary: Contrary[], people: Rec
 
   const firstEvent = new Map<string, number>()
   for (const event of events) {
-    for (const id of [event.from, event.to]) firstEvent.set(id, Math.min(firstEvent.get(id) ?? Infinity, event.at))
+    for (const id of [event.from, event.to])
+      firstEvent.set(id, Math.min(firstEvent.get(id) ?? Infinity, event.at))
   }
   const disputed = new Set(conflicts.map((c) => c.identifier))
   const order = [...identifiers].sort(
@@ -155,13 +165,19 @@ export function buildModel(timeline: Timeline, contrary: Contrary[], people: Rec
         active: holding.active,
         colour: 0,
       }))
-      .sort((a, b) => (a.start ?? -Infinity) - (b.start ?? -Infinity) || a.person.localeCompare(b.person))
+      .sort(
+        (a, b) =>
+          (a.start ?? -Infinity) - (b.start ?? -Infinity) ||
+          a.person.localeCompare(b.person),
+      )
     for (const bar of bars) {
       bar.colour = colourOf(bar.person)
       if (bar.start === null && bar.end === null) undated.push(bar)
       else allBars.push(bar)
     }
-    const laneEvents = events.filter((event) => event.from === identifier || event.to === identifier)
+    const laneEvents = events.filter(
+      (event) => event.from === identifier || event.to === identifier,
+    )
     const calls = laneEvents.some((event) => event.type === 'call')
     const transfers = laneEvents.some((event) => event.type === 'transfer')
     return {
@@ -169,7 +185,12 @@ export function buildModel(timeline: Timeline, contrary: Contrary[], people: Rec
       bars: bars.filter((bar) => bar.start !== null || bar.end !== null),
       events: laneEvents,
       conflicts: conflicts.filter((c) => c.identifier === identifier),
-      kind: calls && !transfers ? 'phone number' : transfers && !calls ? 'bank account' : 'identifier',
+      kind:
+        calls && !transfers
+          ? 'phone number'
+          : transfers && !calls
+            ? 'bank account'
+            : 'identifier',
       holders: [...new Set(bars.map((bar) => bar.person))],
     }
   })
@@ -233,7 +254,12 @@ function istMidnight(y: number, m: number, d: number): number {
   return Date.UTC(y, m, d) - IST_OFFSET_MS
 }
 
-function monthTicks(lo: number, hi: number, label: (t: number, k: number) => string | null, major = true): Tick[] {
+function monthTicks(
+  lo: number,
+  hi: number,
+  label: (t: number, k: number) => string | null,
+  major = true,
+): Tick[] {
   const start = istParts(lo)
   const out: Tick[] = []
   for (let k = 0; k < 600; k += 1) {
@@ -255,7 +281,11 @@ function makeTicks(lo: number, hi: number, plotWidth: number): Tick[] {
     const every = Math.max(1, Math.ceil(48 / perDay))
     const out: Tick[] = []
     for (let t = firstDay, k = 0; t <= hi; t += DAY_MS, k += 1) {
-      out.push({ t, label: k % every === 0 ? formatDayMonth(t) : null, major: k % every === 0 })
+      out.push({
+        t,
+        label: k % every === 0 ? formatDayMonth(t) : null,
+        major: k % every === 0,
+      })
     }
     return out
   }
@@ -266,7 +296,11 @@ function makeTicks(lo: number, hi: number, plotWidth: number): Tick[] {
     while (istParts(monday).dow !== 1) monday += DAY_MS
     const labelWeeks = perDay * 7 >= 50
     for (let t = monday; t <= hi; t += 7 * DAY_MS) {
-      out.push({ t, label: labelWeeks ? formatDayMonth(t) : null, major: false })
+      out.push({
+        t,
+        label: labelWeeks ? formatDayMonth(t) : null,
+        major: false,
+      })
     }
     return [...out, ...monthTicks(lo, hi, (t) => formatMonthYear(t))]
   }
@@ -275,24 +309,35 @@ function makeTicks(lo: number, hi: number, plotWidth: number): Tick[] {
   if (perMonth >= 40) {
     return monthTicks(lo, hi, (t, k) => {
       const p = istParts(t)
-      return p.m === 0 || k === 0 ? formatMonthYear(t) : formatMonthYear(t).split(' ')[0]
+      return p.m === 0 || k === 0
+        ? formatMonthYear(t)
+        : formatMonthYear(t).split(' ')[0]
     })
   }
   if (perMonth >= 13) {
-    return monthTicks(lo, hi, (t) => (istParts(t).m % 3 === 0 ? formatMonthYear(t) : null)).map((tick) => ({
+    return monthTicks(lo, hi, (t) =>
+      istParts(t).m % 3 === 0 ? formatMonthYear(t) : null,
+    ).map((tick) => ({
       ...tick,
       major: tick.label !== null,
     }))
   }
-  return monthTicks(lo, hi, (t) => (istParts(t).m === 0 ? String(istParts(t).y) : null)).map((tick) => ({
+  return monthTicks(lo, hi, (t) =>
+    istParts(t).m === 0 ? String(istParts(t).y) : null,
+  ).map((tick) => ({
     ...tick,
     major: tick.label !== null,
   }))
 }
 
 /** Drops labels that would print over their neighbours, majors kept first. */
-function spaceLabels(ticks: (Tick & { x: number })[], gap = 46): (Tick & { x: number })[] {
-  const ordered = [...ticks].sort((a, b) => Number(b.major) - Number(a.major) || a.t - b.t)
+function spaceLabels(
+  ticks: (Tick & { x: number })[],
+  gap = 46,
+): (Tick & { x: number })[] {
+  const ordered = [...ticks].sort(
+    (a, b) => Number(b.major) - Number(a.major) || a.t - b.t,
+  )
   const kept: number[] = []
   const labelled = new Set<Tick & { x: number }>()
   for (const tick of ordered) {
@@ -302,7 +347,9 @@ function spaceLabels(ticks: (Tick & { x: number })[], gap = 46): (Tick & { x: nu
       labelled.add(tick)
     }
   }
-  return ticks.map((tick) => (labelled.has(tick) ? tick : { ...tick, label: null }))
+  return ticks.map((tick) =>
+    labelled.has(tick) ? tick : { ...tick, label: null },
+  )
 }
 
 // --- Layout ---------------------------------------------------------------------------
@@ -356,7 +403,11 @@ export interface Layout {
   groups: PlacedGroup[]
 }
 
-export function layoutTimeline(model: Model, width: number, zoom: Zoom): Layout | null {
+export function layoutTimeline(
+  model: Model,
+  width: number,
+  zoom: Zoom,
+): Layout | null {
   const domain = computeDomain(model, zoom)
   if (!domain) return null
   const [lo, hi] = domain
@@ -364,7 +415,8 @@ export function layoutTimeline(model: Model, width: number, zoom: Zoom): Layout 
   const plotRight = width - RIGHT
   const plotWidth = Math.max(40, plotRight - plotLeft)
   const x = (t: number) => plotLeft + ((t - lo) / (hi - lo)) * plotWidth
-  const clampX = (value: number) => Math.min(plotRight, Math.max(plotLeft, value))
+  const clampX = (value: number) =>
+    Math.min(plotRight, Math.max(plotLeft, value))
 
   const lanes: PlacedLane[] = []
   const groups: PlacedGroup[] = []
@@ -389,13 +441,23 @@ export function layoutTimeline(model: Model, width: number, zoom: Zoom): Layout 
       const clippedLeft = bar.start === null || bar.start < lo
       const clippedRight = bar.end === null || bar.end > hi
       const x0 = clippedLeft ? plotLeft : clampX(x(bar.start ?? lo))
-      const x1 = Math.max(x0 + 3, clippedRight ? plotRight : clampX(x(bar.end ?? hi)))
+      const x1 = Math.max(
+        x0 + 3,
+        clippedRight ? plotRight : clampX(x(bar.end ?? hi)),
+      )
       let row = rowsEnd.findIndex((end) => end + 3 <= x0)
       if (row === -1) {
         row = rowsEnd.length
         rowsEnd.push(x1)
       } else rowsEnd[row] = x1
-      bars.push({ ...bar, x0, x1, y: barsTop + row * (BAR + BAR_GAP), clippedLeft, clippedRight })
+      bars.push({
+        ...bar,
+        x0,
+        x1,
+        y: barsTop + row * (BAR + BAR_GAP),
+        clippedLeft,
+        clippedRight,
+      })
     }
     const rows = Math.max(1, rowsEnd.length)
     const laneBottom = barsTop + rows * (BAR + BAR_GAP) - BAR_GAP + LANE_PAD
@@ -406,7 +468,10 @@ export function layoutTimeline(model: Model, width: number, zoom: Zoom): Layout 
       const x1 = clampX(x(conflict.to)) + 4
       const label = `${plural(conflict.events, 'event')} read as ${conflict.holders.join(' or ')} · ${formatRange(conflict.from, conflict.to)}`
       // Starts at the band, but slides left rather than run off the plot.
-      const labelX = Math.max(plotLeft + 4, Math.min(x0 + 4, plotRight - 4 - textWidth(label, 5.3)))
+      const labelX = Math.max(
+        plotLeft + 4,
+        Math.min(x0 + 4, plotRight - 4 - textWidth(label, 5.3)),
+      )
       return { x0, x1, label, labelX }
     })
 
@@ -447,7 +512,9 @@ export function layoutTimeline(model: Model, width: number, zoom: Zoom): Layout 
     laneGroups.forEach((group, index) => {
       const next = laneGroups[index + 1]
       group.showCount =
-        group.events.length > 1 && (!next || next.x - group.x >= 18) && group.x + 18 <= plotRight + RIGHT
+        group.events.length > 1 &&
+        (!next || next.x - group.x >= 18) &&
+        group.x + 18 <= plotRight + RIGHT
     })
     groups.push(...laneGroups)
 
@@ -457,10 +524,24 @@ export function layoutTimeline(model: Model, width: number, zoom: Zoom): Layout 
 
   groups.sort((a, b) => a.at - b.at || a.lane - b.lane)
   // A label that would run off the right edge is dropped; its gridline stays.
-  const ticks = spaceLabels(makeTicks(lo, hi, plotWidth).map((tick) => ({ ...tick, x: x(tick.t) }))).map((tick) =>
-    tick.label && tick.x + 3 + textWidth(tick.label, 6) > width - 2 ? { ...tick, label: null } : tick,
+  const ticks = spaceLabels(
+    makeTicks(lo, hi, plotWidth).map((tick) => ({ ...tick, x: x(tick.t) })),
+  ).map((tick) =>
+    tick.label && tick.x + 3 + textWidth(tick.label, 6) > width - 2
+      ? { ...tick, label: null }
+      : tick,
   )
-  return { width, height: top + 4, plotLeft, plotRight, lo, hi, ticks, lanes, groups }
+  return {
+    width,
+    height: top + 4,
+    plotLeft,
+    plotRight,
+    lo,
+    hi,
+    ticks,
+    lanes,
+    groups,
+  }
 }
 
 // --- Text -------------------------------------------------------------------------------
@@ -468,7 +549,9 @@ export function layoutTimeline(model: Model, width: number, zoom: Zoom): Layout 
 export function barLabel(bar: PlacedBar, claimWindow: number): string {
   const parts = [bar.person, bar.kind]
   if (bar.kind === 'claim' && bar.stated !== null) {
-    parts.push(`stated ${formatDayMonth(bar.stated)}, ±${claimWindow} days assumed`)
+    parts.push(
+      `stated ${formatDayMonth(bar.stated)}, ±${claimWindow} days assumed`,
+    )
   } else if (bar.clippedLeft && bar.start !== null) {
     parts.push(`since ${formatDate(bar.start)}`)
   } else if (bar.start === null) {
@@ -491,7 +574,9 @@ export function barTitle(bar: BarModel, claimWindow: number): string {
     return `${head}\nStated for ${formatDate(bar.stated)}; drawn ±${claimWindow} days (${formatRange(bar.start, lastDay(bar.end))}) as the reach the analysis assumes for a claim.${bar.active ? '' : '\nNot counted under the current decisions.'}`
   }
   const span =
-    bar.end === null ? `from ${formatDate(bar.start)}, open-ended` : formatRange(bar.start, lastDay(bar.end))
+    bar.end === null
+      ? `from ${formatDate(bar.start)}, open-ended`
+      : formatRange(bar.start, lastDay(bar.end))
   return `${head}\nHolds ${bar.identifier} ${span}.${bar.active ? '' : '\nNot counted under the current decisions.'}`
 }
 

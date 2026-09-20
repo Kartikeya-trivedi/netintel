@@ -1,11 +1,16 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
-import { inv, type Contrast, type FindingSummary, type Status } from '../../api/investigation'
+import {
+  inv,
+  type Contrast,
+  type FindingSummary,
+  type Status,
+} from '../../api/investigation'
 import { plural } from '../../lib/format'
 import { useScopedAsync } from '../../lib/useApi'
-import { ErrorNote, Legend, Spinner } from '../Instrument'
-import { ChainLine, LEGEND, Note, SectionHeading, Tag } from './Controls'
+import { ErrorNote, FieldLabel, LoadingState } from '../../ui'
+import { ChainLine, LABEL, Callout, SectionHeading, Chip } from './shared'
 import StatusBadge, { statusLabel } from './StatusBadge'
 
 /** The same case files through an ordinary resolved graph, and through this
@@ -28,7 +33,11 @@ const OURS_RULES = [
   'Routes through a high-activity contact are leads, not support.',
 ]
 
-function differences(row: Row): { status: boolean; route: boolean; missing: boolean } {
+function differences(row: Row): {
+  status: boolean
+  route: boolean
+  missing: boolean
+} {
   const ours: Status = row.ours?.status ?? 'unsupported'
   const oursChain = row.ours?.headline?.chain.join('→') ?? ''
   return {
@@ -47,16 +56,23 @@ export default function ContrastView({
   scope: string
   revision: number
 }) {
-  const contrast = useScopedAsync(() => inv.contrast(workspaceId), scope, [revision])
-  const findings = useScopedAsync(() => inv.findings(workspaceId), scope, [revision])
+  const contrast = useScopedAsync(() => inv.contrast(workspaceId), scope, [
+    revision,
+  ])
+  const findings = useScopedAsync(() => inv.findings(workspaceId), scope, [
+    revision,
+  ])
   const byKey = useMemo(
-    () => new Map((findings.data ?? []).map((finding) => [finding.key, finding])),
+    () =>
+      new Map((findings.data ?? []).map((finding) => [finding.key, finding])),
     [findings.data],
   )
 
   const rows = contrast.data?.findings ?? []
   const overstated = rows.filter(
-    (row) => row.naive_status === 'supported' && (row.ours === null || row.ours.status !== 'supported'),
+    (row) =>
+      row.naive_status === 'supported' &&
+      (row.ours === null || row.ours.status !== 'supported'),
   )
   const rerouted = rows.filter((row) => {
     const diff = differences(row)
@@ -66,46 +82,56 @@ export default function ContrastView({
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
       <header>
-        <Legend>Contrast</Legend>
-        <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-ink-100">
+        <h2 className="text-xl font-semibold tracking-tight text-heading">
           What an ordinary resolved graph would report
         </h2>
-        <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-ink-400">
-          The same originals, read two ways. On the left, the rules most link-analysis tools apply by default. On the
-          right, this workspace. Neither column is a judgement about anyone; the difference is in what each treats
-          as evidence of a connection.
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-body">
+          On the left, the simplified rules listed below. On the right, this
+          workspace. Neither column is a judgement about anyone; the difference
+          is in what each treats as evidence of a connection.
         </p>
       </header>
 
-      {contrast.loading && !contrast.data && <Spinner label="Reading both graphs" />}
+      {contrast.loading && !contrast.data && (
+        <LoadingState label="Reading both graphs" />
+      )}
       {contrast.error && <ErrorNote message={contrast.error} />}
 
       {contrast.data && (
         <>
-          <div className="grid gap-px border hairline gap-fill md:grid-cols-2">
-            <div className="bg-ink-1000 px-4 py-3">
-              <Legend>An ordinary resolved graph assumes</Legend>
-              <ol className="mt-2 list-decimal space-y-1 pl-5 text-[12.5px] leading-relaxed text-ink-200">
-                {contrast.data.rules.map((rule) => (
-                  <li key={rule}>{rule}</li>
-                ))}
-              </ol>
+          <details className="comparison-rules">
+            <summary>
+              How the two methods handle evidence
+              <span aria-hidden="true">+</span>
+            </summary>
+            <div className="grid gap-px border-t border-border bg-border md:grid-cols-2">
+              <div className="bg-canvas px-4 py-3">
+                <FieldLabel>An ordinary resolved graph assumes</FieldLabel>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-relaxed text-body">
+                  {contrast.data.rules.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ol>
+              </div>
+              <div className="bg-canvas px-4 py-3">
+                <FieldLabel>This workspace instead</FieldLabel>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-relaxed text-body">
+                  {OURS_RULES.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ol>
+              </div>
             </div>
-            <div className="bg-ink-1000 px-4 py-3">
-              <Legend>This workspace instead</Legend>
-              <ol className="mt-2 list-decimal space-y-1 pl-5 text-[12.5px] leading-relaxed text-ink-200">
-                {OURS_RULES.map((rule) => (
-                  <li key={rule}>{rule}</li>
-                ))}
-              </ol>
-            </div>
-          </div>
+          </details>
 
           {overstated.length > 0 ? (
-            <div className="border-l-2 border-signal bg-signal/10 px-4 py-3">
-              <p className={`${LEGEND} text-signal`}>Where the ordinary graph overstates</p>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-100">
-                It reports {plural(overstated.length, 'connection')} as supported that this workspace{' '}
+            <div className="border-l-2 border-primary bg-primary/10 px-4 py-3">
+              <p className={`${LABEL} text-primary`}>
+                Where the ordinary graph overstates
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-heading">
+                It reports {plural(overstated.length, 'connection')} as
+                supported that this workspace{' '}
                 {overstated.every((row) => row.ours === null)
                   ? 'does not find at all'
                   : overstated.every((row) => row.ours?.status === 'lead')
@@ -118,21 +144,26 @@ export default function ContrastView({
                     <strong className="font-semibold">
                       {row.a} ({row.cases[0]}) ↔ {row.b} ({row.cases[1]})
                     </strong>{' '}
-                    ({row.ours ? statusLabel(row.ours.status) : 'not a finding'})
+                    ({row.ours ? statusLabel(row.ours.status) : 'not a finding'}
+                    )
                   </span>
                 ))}
-                . An investigation following the ordinary graph would treat {overstated.length === 1 ? 'it' : 'them'} as
-                established.
+                . Following this simplified reading would treat{' '}
+                {overstated.length === 1 ? 'it' : 'them'} as established.
               </p>
             </div>
           ) : (
-            <Note>Both readings agree on the status of every pair.</Note>
+            <Callout>Both readings agree on the status of every pair.</Callout>
           )}
           {rerouted.length > 0 && (
-            <p className="text-[12.5px] leading-relaxed text-ink-400">
-              {plural(rerouted.length, 'pair')} agree on status but not on the route:{' '}
+            <p className="text-sm leading-relaxed text-body">
+              {plural(rerouted.length, 'pair')} agree on status but not on the
+              route:{' '}
               {rerouted
-                .map((row) => `${row.a} ↔ ${row.b} runs ${row.naive_chain.join(' → ')} in the ordinary graph`)
+                .map(
+                  (row) =>
+                    `${row.a} ↔ ${row.b} runs ${row.naive_chain.join(' → ')} in the ordinary graph`,
+                )
                 .join('; ')}
               .
             </p>
@@ -140,30 +171,35 @@ export default function ContrastView({
 
           <section className="space-y-3">
             <SectionHeading title={`Accused pairs · ${rows.length}`}>
-              The ordinary graph counts documents as independent sources. This workspace also counts origins: copies
-              and repeats of one source count once.
+              The ordinary graph counts documents as independent sources. This
+              workspace also counts origins: copies and repeats of one source
+              count once.
             </SectionHeading>
-            <div className="relative overflow-x-auto border hairline">
+            <div className="relative overflow-x-auto border border-border">
               <table className="w-full min-w-[820px] text-left">
-                <thead className="border-b hairline bg-ink-950">
+                <thead className="border-b border-border bg-surface">
                   <tr>
                     <th scope="col" className="px-3 py-2">
-                      <Legend>Accused pair</Legend>
+                      <FieldLabel>Accused pair</FieldLabel>
                     </th>
                     <th scope="col" className="px-3 py-2">
-                      <Legend>Ordinary resolved graph</Legend>
+                      <FieldLabel>Ordinary resolved graph</FieldLabel>
                     </th>
                     <th scope="col" className="px-3 py-2">
-                      <Legend>This workspace</Legend>
+                      <FieldLabel>This workspace</FieldLabel>
                     </th>
                     <th scope="col" className="px-3 py-2">
-                      <Legend>Difference</Legend>
+                      <FieldLabel>Difference</FieldLabel>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-rule">
+                <tbody className="divide-y divide-border">
                   {rows.map((row) => (
-                    <ContrastRow key={`${row.a}-${row.b}`} row={row} ours={row.ours ? byKey.get(row.ours.key) ?? null : null} />
+                    <ContrastRow
+                      key={`${row.a}-${row.b}`}
+                      row={row}
+                      ours={row.ours ? (byKey.get(row.ours.key) ?? null) : null}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -180,26 +216,35 @@ function ContrastRow({ row, ours }: { row: Row; ours: FindingSummary | null }) {
   const flagged = diff.status || diff.missing
 
   return (
-    <tr className={`align-top ${flagged ? 'bg-signal/5' : ''}`}>
-      <td className={`border-l-2 px-3 py-3 ${flagged ? 'border-l-signal' : 'border-l-transparent'}`}>
-        <p className="text-[13px] font-medium text-ink-100">
-          {row.a} <span className="readout text-[11px] font-normal text-ink-500">({row.cases[0]})</span>
+    <tr className={`align-top ${flagged ? 'bg-primary/5' : ''}`}>
+      <td
+        className={`border-l-2 px-3 py-3 ${flagged ? 'border-l-primary' : 'border-l-transparent'}`}
+      >
+        <p className="text-sm font-medium text-heading">
+          {row.a}{' '}
+          <span className="numeric text-xs font-normal text-muted">
+            ({row.cases[0]})
+          </span>
         </p>
-        <p className="text-[13px] font-medium text-ink-100">
-          <span aria-hidden="true" className="mr-1 text-ink-500">
+        <p className="text-sm font-medium text-heading">
+          <span aria-hidden="true" className="mr-1 text-muted">
             ↔
           </span>
           <span className="sr-only">and </span>
-          {row.b} <span className="readout text-[11px] font-normal text-ink-500">({row.cases[1]})</span>
+          {row.b}{' '}
+          <span className="numeric text-xs font-normal text-muted">
+            ({row.cases[1]})
+          </span>
         </p>
       </td>
       <td className="px-3 py-3">
         <StatusBadge status={row.naive_status} />
-        <p className="mt-1.5 text-[12.5px] text-ink-200">
+        <p className="mt-1.5 text-sm text-body">
           <ChainLine chain={row.naive_chain} />
         </p>
-        <p className="readout mt-1 text-[10.5px] text-ink-500">
-          {plural(row.naive_support.documents, 'document')} counted as independent · {plural(row.naive_support.records, 'record')} ·{' '}
+        <p className="numeric mt-1 text-xs text-muted">
+          {plural(row.naive_support.documents, 'document')} counted as
+          independent · {plural(row.naive_support.records, 'record')} ·{' '}
           {plural(row.naive_support.claims, 'claim')}
         </p>
       </td>
@@ -207,18 +252,24 @@ function ContrastRow({ row, ours }: { row: Row; ours: FindingSummary | null }) {
         {row.ours ? (
           <>
             <StatusBadge status={row.ours.status} />
-            <p className="mt-1.5 text-[12.5px] text-ink-200">
-              {row.ours.headline ? <ChainLine chain={row.ours.headline.chain} /> : 'No chain within the search scope'}
+            <p className="mt-1.5 text-sm text-body">
+              {row.ours.headline ? (
+                <ChainLine chain={row.ours.headline.chain} />
+              ) : (
+                'No chain within the search scope'
+              )}
             </p>
             {ours && (
-              <p className="readout mt-1 text-[10.5px] text-ink-500">
-                {plural(ours.counts.documents, 'document')} · {plural(ours.counts.origins, 'origin')} ·{' '}
-                {plural(ours.counts.records, 'record')} · {plural(ours.counts.claims, 'claim')}
+              <p className="numeric mt-1 text-xs text-muted">
+                {plural(ours.counts.documents, 'document')} ·{' '}
+                {plural(ours.counts.origins, 'origin')} ·{' '}
+                {plural(ours.counts.records, 'record')} ·{' '}
+                {plural(ours.counts.claims, 'claim')}
               </p>
             )}
             <Link
               to={`/findings?f=${encodeURIComponent(row.ours.key)}&tab=evidence`}
-              className="mt-1.5 inline-block font-cond text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-400 transition-colors hover:text-signal"
+              className="mt-1.5 inline-block text-xs font-semibold text-body transition-colors hover:text-primary"
             >
               Open finding →
             </Link>
@@ -226,16 +277,22 @@ function ContrastRow({ row, ours }: { row: Row; ours: FindingSummary | null }) {
         ) : (
           <>
             <StatusBadge status="unsupported" />
-            <p className="mt-1.5 text-[12.5px] text-ink-400">Not a finding: no route under this workspace's rules.</p>
+            <p className="mt-1.5 text-sm text-body">
+              Not a finding: no route under this workspace's rules.
+            </p>
           </>
         )}
       </td>
       <td className="px-3 py-3">
         <div className="flex flex-wrap gap-1">
-          {diff.missing && <Tag tone="signal">Not found here</Tag>}
-          {diff.status && !diff.missing && <Tag tone="signal">Status differs</Tag>}
-          {diff.route && <Tag tone="lead">Route differs</Tag>}
-          {!diff.status && !diff.route && !diff.missing && <Tag tone="muted">Same reading</Tag>}
+          {diff.missing && <Chip tone="signal">Not found here</Chip>}
+          {diff.status && !diff.missing && (
+            <Chip tone="signal">Status differs</Chip>
+          )}
+          {diff.route && <Chip tone="lead">Route differs</Chip>}
+          {!diff.status && !diff.route && !diff.missing && (
+            <Chip tone="muted">Same reading</Chip>
+          )}
         </div>
       </td>
     </tr>

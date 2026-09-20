@@ -1,17 +1,12 @@
 import type { Status } from '../../api/investigation'
 
-/** A finding's analytical status, always in words.
- *
- *  The square beside the words is filled, half-filled or hollow so the three
- *  states differ in shape as well as colour; neither is ever the only carrier.
- */
+/** A finding's analytical status, distinguished by both icon and words. */
 
 interface StatusMeta {
   label: string
   short: string
   explain: string
   className: string
-  glyph: string
 }
 
 export const STATUS_META: Record<Status, StatusMeta> = {
@@ -20,23 +15,20 @@ export const STATUS_META: Record<Status, StatusMeta> = {
     short: 'Supported',
     explain:
       'At least one route rests on no unreviewed identity and passes no high-activity contact.',
-    className: 'border-status-supported/45 bg-status-supported/10 text-status-supported',
-    glyph: 'bg-current',
+    className: 'text-status-supported',
   },
   lead: {
-    label: 'Lead — needs review',
+    label: 'Lead (needs review)',
     short: 'Lead',
     explain:
       'Every route found rests on an unreviewed identity or passes a high-activity contact. Review before relying on it.',
-    className: 'border-status-lead/50 bg-status-lead/10 text-status-lead',
-    glyph: 'border border-current bg-[linear-gradient(90deg,currentColor_50%,transparent_50%)]',
+    className: 'text-status-lead',
   },
   unsupported: {
     label: 'Not supported',
     short: 'Not supported',
     explain: 'No route between the two within the search scope.',
-    className: 'border-status-unsupported/50 text-status-unsupported',
-    glyph: 'border border-current',
+    className: 'text-status-unsupported',
   },
 }
 
@@ -58,11 +50,9 @@ export default function StatusBadge({
   return (
     <span
       title={meta.explain}
-      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border font-cond font-semibold uppercase tracking-[0.1em] ${
-        size === 'md' ? 'px-2.5 py-1 text-[11px]' : 'px-1.5 py-0.5 text-[10px]'
-      } ${meta.className}`}
+      className={`status-badge status-${status} ${size === 'md' ? 'px-2.5 py-1.5' : ''} ${meta.className}`}
     >
-      <span aria-hidden="true" className={`h-2 w-2 shrink-0 ${meta.glyph}`} />
+      <span className="state-mark" data-state={status} aria-hidden="true" />
       {short ? meta.short : meta.label}
     </span>
   )
@@ -74,16 +64,14 @@ export function StatusChange({ from, to }: { from: Status; to: Status }) {
     return (
       <span className="inline-flex flex-wrap items-center gap-1.5">
         <StatusBadge status={to} short />
-        <span className="font-cond text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-500">
-          unchanged
-        </span>
+        <span className="text-xs font-semibold text-muted">unchanged</span>
       </span>
     )
   }
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <StatusBadge status={from} short />
-      <span aria-hidden="true" className="text-ink-500">
+      <span aria-hidden="true" className="text-muted">
         →
       </span>
       <span className="sr-only">becomes</span>

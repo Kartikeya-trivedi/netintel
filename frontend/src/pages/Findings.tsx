@@ -1,15 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { inv, type FindingSummary, type History } from '../api/investigation'
 import ContrastView from '../components/findings/ContrastView'
-import { ActionButton, LEGEND, Note } from '../components/findings/Controls'
-import { DecisionProvider, type RecordedDecision } from '../components/findings/DecisionContext'
-import FindingDetail, { parseTab, type Tab } from '../components/findings/FindingDetail'
-import FindingQueue, { type RetiredFinding } from '../components/findings/FindingQueue'
+import { Button, LABEL, Callout } from '../components/findings/shared'
+import {
+  DecisionProvider,
+  type RecordedDecision,
+} from '../components/findings/DecisionContext'
+import FindingDetail, {
+  parseTab,
+  type Tab,
+} from '../components/findings/FindingDetail'
+import FindingQueue, {
+  type RetiredFinding,
+} from '../components/findings/FindingQueue'
 import StatusBadge from '../components/findings/StatusBadge'
 import WorkspaceBar from '../components/findings/WorkspaceBar'
-import { EmptyPanel, ErrorNote, Legend, Spinner } from '../components/Instrument'
+import {
+  Dialog,
+  EmptyState,
+  ErrorNote,
+  FieldLabel,
+  LoadingState,
+  LoadingPane,
+} from '../ui'
 import { formatDateTime } from '../lib/format'
 import { useScopedAsync } from '../lib/useApi'
 import { useWorkspace } from '../lib/WorkspaceContext'
@@ -24,24 +39,29 @@ import { useWorkspace } from '../lib/WorkspaceContext'
 
 const STATIC = import.meta.env.MODE === 'static'
 
-export default function Findings({ view = 'queue' }: { view?: 'queue' | 'contrast' }) {
+export default function Findings({
+  view = 'queue',
+}: {
+  view?: 'queue' | 'contrast'
+}) {
   if (STATIC) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
-        <EmptyPanel
+        <EmptyState
           title="Findings need the live backend"
           action={
             <Link
               to="/graph"
-              className="inline-block border hairline px-3 py-1.5 font-cond text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-200 transition-colors hover:text-signal"
+              className="inline-block border border-border px-3 py-1.5 text-xs font-semibold text-body transition-colors hover:text-primary"
             >
               Open the network view
             </Link>
           }
         >
-          This hosted preview is read-only and has no server to compute cross-case findings, scenarios or signed
-          packages. Run the backend locally to use the findings workspace.
-        </EmptyPanel>
+          This hosted preview is read-only and has no server to compute
+          cross-case findings, scenarios or signed packages. Run the backend
+          locally to use the findings workspace.
+        </EmptyState>
       </div>
     )
   }
@@ -63,35 +83,45 @@ function WorkspaceBody({ view }: { view: 'queue' | 'contrast' }) {
     // a fault.
     return (
       <div className="mx-auto w-full max-w-3xl px-6 py-10">
-        <EmptyPanel
-          title={ws.principals.length > 0 ? 'This identity is not known here' : 'No demo identities on this server yet'}
+        <EmptyState
+          title={
+            ws.principals.length > 0
+              ? 'This identity is not known here'
+              : 'No demo identities on this server yet'
+          }
           action={
-            <ActionButton variant="primary" disabled={ws.demo.busy} onClick={() => void ws.loadDemo()}>
+            <Button
+              variant="primary"
+              disabled={ws.demo.busy}
+              onClick={() => void ws.loadDemo()}
+            >
               {ws.demo.busy ? 'Loading…' : 'Load Operation Broken Mirror'}
-            </ActionButton>
+            </Button>
           }
         >
-          This browser acts as <span className="font-mono">{ws.principal}</span>, which the server does not
-          know.{' '}
+          This browser acts as <span className="font-mono">{ws.principal}</span>
+          , which the server does not know.{' '}
           {ws.principals.length > 0
             ? 'Pick one of the demo identities above, or reload the demo to start again.'
             : 'Loading the demo creates three synthetic case files, the demo identities and their grants, and a joint workspace to review.'}
-        </EmptyPanel>
+        </EmptyState>
       </div>
     )
   }
   if (ws.workspacesError && !ws.workspaces) {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-3 px-6 py-8">
-        <ErrorNote message={`The workspace list could not be read: ${ws.workspacesError}`} />
-        <ActionButton onClick={ws.refresh}>Try again</ActionButton>
+        <ErrorNote
+          message={`The workspace list could not be read: ${ws.workspacesError}`}
+        />
+        <Button onClick={ws.refresh}>Try again</Button>
       </div>
     )
   }
   if (!ws.workspaces) {
     return (
       <div className="px-6 py-8">
-        <Spinner label="Reading workspaces" />
+        <LoadingState label="Reading workspaces" />
       </div>
     )
   }
@@ -101,7 +131,11 @@ function WorkspaceBody({ view }: { view: 'queue' | 'contrast' }) {
   if (view === 'contrast') {
     return (
       <div className="min-h-0 flex-1 lg:overflow-y-auto">
-        <ContrastView workspaceId={ws.workspaceId} scope={ws.scope} revision={ws.revision} />
+        <ContrastView
+          workspaceId={ws.workspaceId}
+          scope={ws.scope}
+          revision={ws.revision}
+        />
       </div>
     )
   }
@@ -116,34 +150,44 @@ function NoWorkspace() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10">
-      <EmptyPanel
+      <EmptyState
         title={`No workspace for ${me?.name ?? principal}`}
         action={
-          <ActionButton variant="primary" disabled={demo.busy} onClick={() => void loadDemo()}>
+          <Button
+            variant="primary"
+            disabled={demo.busy}
+            onClick={() => void loadDemo()}
+          >
             {demo.busy ? 'Loading…' : 'Load Operation Broken Mirror'}
-          </ActionButton>
+          </Button>
         }
       >
-        A workspace compares case files that an identity may read together, for one stated purpose. This identity
-        holds no grant set that opens one.{' '}
+        A workspace compares case files that an identity may read together, for
+        one stated purpose. This identity holds no grant set that opens one.{' '}
         {grants.length > 0
           ? 'Its grants are listed below.'
           : 'It holds no case grants at all.'}{' '}
-        Loading the demo creates three synthetic case files and a joint workspace for the demo investigator.
-      </EmptyPanel>
+        Loading the demo creates three synthetic case files and a joint
+        workspace for the demo investigator.
+      </EmptyState>
       {grants.length > 0 && (
-        <div className="mt-4 border hairline">
-          <p className="border-b hairline px-3 py-2">
-            <Legend>Grants held by {me?.name ?? principal}</Legend>
+        <div className="mt-4 border border-border">
+          <p className="border-b border-border px-3 py-2">
+            <FieldLabel>Grants held by {me?.name ?? principal}</FieldLabel>
           </p>
-          <ul className="divide-y divide-rule">
+          <ul className="divide-y divide-border">
             {grants.map((grant) => (
-              <li key={`${grant.case_id}-${grant.purpose}`} className="px-3 py-2 text-[12.5px] text-ink-200">
-                <span className="readout mr-2 text-ink-100">{grant.code}</span>
+              <li
+                key={`${grant.case_id}-${grant.purpose}`}
+                className="px-3 py-2 text-sm text-body"
+              >
+                <span className="numeric mr-2 text-heading">{grant.code}</span>
                 {grant.case_name ?? 'case name withheld'}
-                <span className="block text-[11.5px] text-ink-500">
+                <span className="block text-xs text-muted">
                   Purpose: {grant.purpose}
-                  {grant.expires_at ? ` · expires ${formatDateTime(grant.expires_at)}` : ' · no expiry'}
+                  {grant.expires_at
+                    ? ` · expires ${formatDateTime(grant.expires_at)}`
+                    : ' · no expiry'}
                 </span>
               </li>
             ))}
@@ -155,7 +199,10 @@ function NoWorkspace() {
 }
 
 /** Findings that an earlier snapshot showed and the current one does not. */
-function retiredFindings(history: History | null, current: FindingSummary[] | null): RetiredFinding[] {
+function retiredFindings(
+  history: History | null,
+  current: FindingSummary[] | null,
+): RetiredFinding[] {
   if (!history || !current) return []
   const live = new Set(current.map((finding) => finding.key))
   const snapshots = [...history.snapshots].sort((a, b) => a.version - b.version)
@@ -174,22 +221,39 @@ function retiredFindings(history: History | null, current: FindingSummary[] | nu
   const out: RetiredFinding[] = []
   for (const entry of seen.values()) {
     if (live.has(entry.key)) continue
-    const after = snapshots.find((snapshot) => snapshot.version > entry.lastVersion)
+    const after = snapshots.find(
+      (snapshot) => snapshot.version > entry.lastVersion,
+    )
     out.push({ ...entry, since: after?.version ?? null })
   }
-  return out.sort((a, b) => b.lastVersion - a.lastVersion || a.title.localeCompare(b.title))
+  return out.sort(
+    (a, b) => b.lastVersion - a.lastVersion || a.title.localeCompare(b.title),
+  )
 }
 
 function FindingsWorkspace({ workspaceId }: { workspaceId: number }) {
   const ws = useWorkspace()
   const [params, setParams] = useSearchParams()
   const [recorded, setRecorded] = useState<RecordedDecision | null>(null)
+  const [queueOpen, setQueueOpen] = useState(false)
+  const detailRef = useRef<HTMLElement>(null)
 
-  const findings = useScopedAsync(() => inv.findings(workspaceId), ws.scope, [ws.revision])
-  const history = useScopedAsync(() => inv.history(workspaceId), ws.scope, [ws.revision])
-  const artifacts = useScopedAsync(() => inv.artifacts(workspaceId), ws.scope, [ws.revision])
+  const findings = useScopedAsync(() => inv.findings(workspaceId), ws.scope, [
+    ws.revision,
+  ])
+  const history = useScopedAsync(() => inv.history(workspaceId), ws.scope, [
+    ws.revision,
+  ])
+  const artifacts = useScopedAsync(() => inv.artifacts(workspaceId), ws.scope, [
+    ws.revision,
+  ])
   const artifactMap = useMemo(
-    () => (artifacts.data ? new Map(artifacts.data.map((artifact) => [artifact.filename, artifact])) : null),
+    () =>
+      artifacts.data
+        ? new Map(
+            artifacts.data.map((artifact) => [artifact.filename, artifact]),
+          )
+        : null,
     [artifacts.data],
   )
 
@@ -197,10 +261,20 @@ function FindingsWorkspace({ workspaceId }: { workspaceId: number }) {
   const selectedKey = params.get('f')
   const tab = parseTab(params.get('tab'))
   const selected = list?.find((finding) => finding.key === selectedKey) ?? null
-  const retired = useMemo(() => retiredFindings(history.data, list), [history.data, list])
-  const retiredSelected = !selected && selectedKey ? retired.find((item) => item.key === selectedKey) ?? null : null
+  const retired = useMemo(
+    () => retiredFindings(history.data, list),
+    [history.data, list],
+  )
+  const retiredSelected =
+    !selected && selectedKey
+      ? (retired.find((item) => item.key === selectedKey) ?? null)
+      : null
   const cases = useMemo(
-    () => (ws.workspace?.cases ?? []).map((item) => ({ code: item.code, name: item.name })),
+    () =>
+      (ws.workspace?.cases ?? []).map((item) => ({
+        code: item.code,
+        name: item.name,
+      })),
     [ws.workspace],
   )
 
@@ -219,16 +293,27 @@ function FindingsWorkspace({ workspaceId }: { workspaceId: number }) {
   }, [list, selectedKey, setParams])
 
   // A new identity or workspace starts with no notice from the previous one.
-  useEffect(() => setRecorded(null), [ws.scope])
+  useEffect(() => {
+    setRecorded(null)
+    setQueueOpen(false)
+  }, [ws.scope])
 
   const select = useCallback(
-    (key: string) =>
+    (key: string) => {
       setParams((current) => {
         const next = new URLSearchParams(current)
         next.set('f', key)
         return next
-      }),
-    [setParams],
+      })
+      if (queueOpen) {
+        setQueueOpen(false)
+        requestAnimationFrame(() => {
+          detailRef.current?.focus({ preventScroll: true })
+          detailRef.current?.scrollIntoView({ block: 'start' })
+        })
+      }
+    },
+    [setParams, queueOpen],
   )
 
   const setTab = useCallback(
@@ -254,30 +339,66 @@ function FindingsWorkspace({ workspaceId }: { workspaceId: number }) {
       {recorded && (
         <div
           role="status"
-          className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-signal/40 bg-signal/10 px-4 py-2 sm:px-5"
+          className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-primary/40 bg-primary/10 px-4 py-2 sm:px-5"
         >
-          <p className="text-[12.5px] text-ink-200">
-            <span className={`${LEGEND} mr-2 text-signal`}>Decision recorded</span>
-            Workspace now at version <span className="readout">{recorded.version}</span>
+          <p className="text-sm text-body">
+            <span className={`${LABEL} mr-2 text-primary`}>
+              Decision recorded
+            </span>
+            Workspace now at version{' '}
+            <span className="numeric">{recorded.version}</span>
             {' · '}
-            {formatDateTime(recorded.at)}. Every finding has been recomputed; the previous version is kept in the
-            history.
+            {formatDateTime(recorded.at)}. Every finding has been recomputed;
+            the previous version is kept in the history.
           </p>
-          <ActionButton variant="link" onClick={() => setRecorded(null)}>
+          <Button variant="link" onClick={() => setRecorded(null)}>
             Dismiss
-          </ActionButton>
+          </Button>
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside
-          aria-label="Findings queue"
-          className="border-b hairline lg:min-h-0 lg:overflow-hidden lg:border-b-0 lg:border-r"
-        >
+      {findings.error && (
+        <div className="mobile-findings-error">
+          <ErrorNote message={findings.error} />
+          <Button onClick={findings.reload}>Try again</Button>
+        </div>
+      )}
+      <div className="mobile-findings-bar">
+        <Button onClick={() => setQueueOpen(true)}>
+          Browse {list?.length ?? 0} findings<span aria-hidden="true">⌄</span>
+        </Button>
+        <span>
+          {selected
+            ? `${(list?.indexOf(selected) ?? 0) + 1} of ${list?.length ?? 0}`
+            : 'Select a finding'}
+        </span>
+      </div>
+      <Dialog
+        open={queueOpen}
+        title="Browse findings"
+        onClose={() => setQueueOpen(false)}
+      >
+        {queueOpen && findings.error ? (
+          <ErrorNote message={findings.error} />
+        ) : (
+          queueOpen && (
+            <FindingQueue
+              selectOnFocus={false}
+              findings={list ?? []}
+              retired={retired}
+              selectedKey={selectedKey}
+              onSelect={select}
+              loading={findings.loading}
+            />
+          )
+        )}
+      </Dialog>
+      <div className="findings-grid">
+        <aside aria-label="Findings queue" className="finding-queue">
           {findings.error ? (
             <div className="space-y-3 p-4">
               <ErrorNote message={findings.error} />
-              <ActionButton onClick={findings.reload}>Try again</ActionButton>
+              <Button onClick={findings.reload}>Try again</Button>
             </div>
           ) : (
             <FindingQueue
@@ -290,7 +411,12 @@ function FindingsWorkspace({ workspaceId }: { workspaceId: number }) {
           )}
         </aside>
 
-        <section aria-label="Selected finding" className="min-w-0 lg:min-h-0 lg:overflow-y-auto">
+        <section
+          ref={detailRef}
+          tabIndex={-1}
+          aria-label="Selected finding"
+          className="finding-detail"
+        >
           {selected ? (
             <FindingDetail
               key={`${ws.scope}|${selected.key}`}
@@ -307,32 +433,42 @@ function FindingsWorkspace({ workspaceId }: { workspaceId: number }) {
               cases={cases}
             />
           ) : retiredSelected ? (
-            <RetiredView item={retiredSelected} history={history.data} onBack={() => list?.[0] && select(list[0].key)} />
+            <RetiredView
+              item={retiredSelected}
+              history={history.data}
+              onBack={() => list?.[0] && select(list[0].key)}
+            />
           ) : list && list.length === 0 ? (
             <div className="px-6 py-10">
-              <EmptyPanel title="Nothing to review">
-                No connection between accused in different case files holds under the current decisions and search
-                limits.
-              </EmptyPanel>
+              <EmptyState title="Nothing to review">
+                No connection between accused in different case files holds
+                under the current decisions and search limits.
+              </EmptyState>
             </div>
           ) : selectedKey && list && !findings.loading ? (
             <div className="px-6 py-10">
-              <EmptyPanel
+              <EmptyState
                 title="Finding not found"
                 action={
                   list[0] && (
-                    <ActionButton onClick={() => select(list[0].key)}>Open the top of the queue</ActionButton>
+                    <Button onClick={() => select(list[0].key)}>
+                      Open the top of the queue
+                    </Button>
                   )
                 }
               >
-                No finding <span className="font-mono">{selectedKey}</span> in this workspace for this identity, now or
-                in its history.
-              </EmptyPanel>
+                No finding <span className="font-mono">{selectedKey}</span> in
+                this workspace for this identity, now or in its history.
+              </EmptyState>
+            </div>
+          ) : findings.error ? (
+            <div className="px-6 py-8">
+              <p className="text-sm text-muted">
+                The finding queue could not be loaded. Try again to continue.
+              </p>
             </div>
           ) : (
-            <div className="px-6 py-8">
-              <Spinner label="Reading findings" />
-            </div>
+            <LoadingPane label="Reading findings" />
           )}
         </section>
       </div>
@@ -351,44 +487,57 @@ function RetiredView({
   history: History | null
   onBack: () => void
 }) {
-  const snapshots = [...(history?.snapshots ?? [])].sort((a, b) => b.version - a.version)
+  const snapshots = [...(history?.snapshots ?? [])].sort(
+    (a, b) => b.version - a.version,
+  )
   return (
     <div className="space-y-5 px-5 py-6 sm:px-6">
-      <header className="border-b hairline pb-4">
-        <Legend>Finding no longer supported</Legend>
-        <h1 className="mt-1.5 text-[21px] font-semibold leading-tight tracking-tight text-ink-100">{item.title}</h1>
+      <header className="border-b border-border pb-4">
+        <FieldLabel>Finding no longer supported</FieldLabel>
+        <h1 className="mt-1.5 text-2xl font-semibold leading-tight tracking-tight text-heading">
+          {item.title}
+        </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <StatusBadge status="unsupported" size="md" />
-          <span className="text-[12.5px] text-ink-400">
+          <span className="text-sm text-body">
             {item.since !== null
               ? `Since version ${item.since}; it was ${item.lastStatus === 'lead' ? 'a lead' : 'supported'} at version ${item.lastVersion}.`
               : `Last shown at version ${item.lastVersion}.`}
           </span>
         </div>
-        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-ink-400">
-          Under the decisions recorded since, no route joins the two within the search scope, so the finding has left
-          the queue. It has not been deleted: its earlier versions stay in the history below, and a later decision
-          can bring it back.
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-body">
+          Under the decisions recorded since, no route joins the two within the
+          search scope, so the finding has left the queue. It has not been
+          deleted: its earlier versions stay in the history below, and a later
+          decision can bring it back.
         </p>
       </header>
 
       <section className="space-y-2">
-        <p className="legend">History</p>
+        <p className="field-label">History</p>
         {snapshots.length === 0 ? (
-          <Note>No snapshots available.</Note>
+          <Callout>No snapshots available.</Callout>
         ) : (
-          <ol className="border-l hairline">
+          <ol className="border-l border-border">
             {snapshots.map((snapshot) => {
               const status = snapshot.statuses[item.key] ?? 'unsupported'
               return (
-                <li key={snapshot.version} className="relative pb-3 pl-4 last:pb-0">
-                  <span aria-hidden="true" className="absolute -left-[4.5px] top-1.5 h-2 w-2 border border-ink-500 bg-ink-1000" />
+                <li
+                  key={snapshot.version}
+                  className="relative pb-3 pl-4 last:pb-0"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="absolute -left-[4.5px] top-1.5 h-2 w-2 border border-muted bg-canvas"
+                  />
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="readout text-[12px] text-ink-100">v{snapshot.version}</span>
+                    <span className="numeric text-xs text-heading">
+                      v{snapshot.version}
+                    </span>
                     <StatusBadge status={status} short />
                   </div>
-                  <p className="mt-1 text-[12.5px] text-ink-200">{snapshot.reason}</p>
-                  <p className="text-[11px] text-ink-500">
+                  <p className="mt-1 text-sm text-body">{snapshot.reason}</p>
+                  <p className="text-xs text-muted">
                     {snapshot.actor} · {formatDateTime(snapshot.at)}
                   </p>
                 </li>
@@ -398,7 +547,7 @@ function RetiredView({
         )}
       </section>
 
-      <ActionButton onClick={onBack}>Back to the queue</ActionButton>
+      <Button onClick={onBack}>Back to the queue</Button>
     </div>
   )
 }

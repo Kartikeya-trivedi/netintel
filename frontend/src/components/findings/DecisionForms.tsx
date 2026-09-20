@@ -9,9 +9,13 @@ import {
   type Task,
 } from '../../api/investigation'
 import { plural } from '../../lib/format'
-import { ErrorNote, Legend } from '../Instrument'
-import { ActionButton, KindLabel, LEGEND, RULE, personText } from './Controls'
-import { useDecisions, type DecisionResult, type DecisionStep } from './DecisionContext'
+import { Dialog, ErrorNote, FieldLabel } from '../../ui'
+import { Button, KindLabel, LABEL, BORDER, personText } from './shared'
+import {
+  useDecisions,
+  type DecisionResult,
+  type DecisionStep,
+} from './DecisionContext'
 import { useFindingTables } from './FindingTables'
 import { candidateText, passages } from './model'
 
@@ -34,11 +38,17 @@ function useSubmit() {
   return { busy, version, result, submit }
 }
 
-function ReasonField({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+function ReasonField({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (next: string) => void
+}) {
   const id = useId()
   return (
     <div>
-      <label htmlFor={id} className="legend">
+      <label htmlFor={id} className="field-label">
         Reason — recorded with your name
       </label>
       <textarea
@@ -49,7 +59,7 @@ function ReasonField({ value, onChange }: { value: string; onChange: (next: stri
         required
         minLength={MIN_REASON}
         placeholder="What you checked, and what it showed"
-        className="mt-1.5 block w-full resize-y border hairline bg-ink-1000 px-2.5 py-2 text-[13px] leading-relaxed text-ink-100 placeholder:text-ink-700"
+        className="mt-1.5 block w-full resize-y border border-border bg-canvas px-2.5 py-2 text-sm leading-relaxed text-heading placeholder:text-muted"
       />
     </div>
   )
@@ -59,17 +69,26 @@ function ResultNote({ result }: { result: DecisionResult | null }) {
   if (!result) return null
   if (result.ok) {
     return (
-      <p role="status" className="border-l-2 border-signal bg-signal/10 px-3 py-2 text-[12.5px] text-ink-200">
-        <span className={`${LEGEND} mr-2 text-signal`}>Recorded</span>
-        Workspace is now at version <span className="readout">{result.version}</span>. Findings are being
+      <p
+        role="status"
+        className="border-l-2 border-primary bg-primary/10 px-3 py-2 text-sm text-body"
+      >
+        <span className={`${LABEL} mr-2 text-primary`}>Recorded</span>
+        Workspace is now at version{' '}
+        <span className="numeric">{result.version}</span>. Findings are being
         recomputed; the earlier version stays in the history.
       </p>
     )
   }
   if (result.conflict) {
     return (
-      <p role="alert" className="border-l-2 border-status-lead bg-status-lead/10 px-3 py-2 text-[12.5px] text-ink-200">
-        <span className={`${LEGEND} mr-2 text-status-lead`}>Workspace moved on</span>
+      <p
+        role="alert"
+        className="border-l-2 border-status-lead bg-status-lead/10 px-3 py-2 text-sm text-body"
+      >
+        <span className={`${LABEL} mr-2 text-status-lead`}>
+          Workspace moved on
+        </span>
         {result.message}
       </p>
     )
@@ -104,41 +123,70 @@ function FormShell({
     if (canSubmit && !busy && !done) onSubmit()
   }
   return (
-    <form onSubmit={handle} className="rise mt-2 space-y-3 border hairline bg-ink-950/80 p-3">
-      <div>
-        <p className="font-cond text-[11px] font-semibold uppercase tracking-[0.12em] text-signal">
-          Analyst decision · {title}
-        </p>
-        {description && <div className="mt-1 text-[12.5px] leading-relaxed text-ink-400">{description}</div>}
-      </div>
-      {!done && children}
-      <ResultNote result={result} />
-      <div className="flex flex-wrap items-center gap-2">
-        {!done && (
-          <ActionButton type="submit" variant="primary" disabled={!canSubmit || busy}>
-            {busy ? 'Recording…' : submitLabel}
-          </ActionButton>
-        )}
-        {onCancel && (
-          <ActionButton variant="link" onClick={onCancel}>
-            {done ? 'Close' : 'Cancel'}
-          </ActionButton>
-        )}
-        {!done && (
-          <span className="text-[11px] text-ink-500">Writes to the case record. Hypotheticals belong in Challenge.</span>
-        )}
-      </div>
-    </form>
+    <Dialog
+      open
+      title={`Record decision · ${title}`}
+      onClose={onCancel ?? (() => undefined)}
+    >
+      <form onSubmit={handle} className="space-y-5">
+        <div>
+          <p className="text-xs font-semibold text-primary">
+            Analyst decision · {title}
+          </p>
+          {description && (
+            <div className="mt-1 text-sm leading-relaxed text-body">
+              {description}
+            </div>
+          )}
+        </div>
+        {!done && children}
+        <ResultNote result={result} />
+        <div className="flex flex-wrap items-center gap-2">
+          {!done && (
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!canSubmit || busy}
+            >
+              {busy ? 'Recording…' : submitLabel}
+            </Button>
+          )}
+          {onCancel && (
+            <Button variant="link" onClick={onCancel}>
+              {done ? 'Close' : 'Cancel'}
+            </Button>
+          )}
+          {!done && (
+            <span className="text-xs text-muted">
+              Writes to the case record. Hypotheticals belong in Challenge.
+            </span>
+          )}
+        </div>
+      </form>
+    </Dialog>
   )
 }
 
 // --- One statement -----------------------------------------------------------------
 
-const REVIEW_CHOICES: { value: ReviewState; label: string; meaning: string }[] = [
-  { value: 'accepted', label: 'Accept', meaning: 'You checked it against the original and it holds.' },
-  { value: 'disputed', label: 'Dispute', meaning: 'You doubt it; it stops counting as support.' },
-  { value: 'rejected', label: 'Reject', meaning: 'It is wrong; it stops counting as support.' },
-]
+const REVIEW_CHOICES: { value: ReviewState; label: string; meaning: string }[] =
+  [
+    {
+      value: 'accepted',
+      label: 'Accept',
+      meaning: 'You checked it against the original and it holds.',
+    },
+    {
+      value: 'disputed',
+      label: 'Dispute',
+      meaning: 'You doubt it; it stops counting as support.',
+    },
+    {
+      value: 'rejected',
+      label: 'Reject',
+      meaning: 'It is wrong; it stops counting as support.',
+    },
+  ]
 
 export function AssertionReviewForm({
   assertion,
@@ -170,7 +218,16 @@ export function AssertionReviewForm({
   return (
     <FormShell
       title="Review this passage"
-      description={item ? <>“{item.summary}” in {item.document?.filename ?? 'an unnamed original'}</> : assertion}
+      description={
+        item ? (
+          <>
+            “{item.summary}” in{' '}
+            {item.document?.filename ?? 'an unnamed original'}
+          </>
+        ) : (
+          assertion
+        )
+      }
       onSubmit={() =>
         void submit(`${state} ${item?.summary ?? assertion}`, [
           (expected) =>
@@ -190,13 +247,15 @@ export function AssertionReviewForm({
       result={result}
     >
       <fieldset>
-        <legend className="legend">Your reading</legend>
+        <legend className="field-label">Your reading</legend>
         <div className="mt-1.5 grid gap-1.5 sm:grid-cols-3">
           {REVIEW_CHOICES.map((choice) => (
             <label
               key={choice.value}
               className={`flex cursor-pointer items-start gap-2 border px-2.5 py-2 transition-colors ${
-                state === choice.value ? 'border-signal bg-signal/10' : `${RULE} hover:border-ink-700`
+                state === choice.value
+                  ? 'border-primary bg-primary/10'
+                  : `${BORDER} hover:border-muted`
               }`}
             >
               <input
@@ -205,29 +264,35 @@ export function AssertionReviewForm({
                 value={choice.value}
                 checked={state === choice.value}
                 onChange={() => setState(choice.value)}
-                className="mt-0.5 accent-signal"
+                className="mt-0.5 accent-primary"
               />
               <span>
-                <span className="block text-[12.5px] font-medium text-ink-100">{choice.label}</span>
-                <span className="block text-[11.5px] leading-snug text-ink-500">{choice.meaning}</span>
+                <span className="block text-sm font-medium text-heading">
+                  {choice.label}
+                </span>
+                <span className="block text-xs leading-snug text-muted">
+                  {choice.meaning}
+                </span>
               </span>
             </label>
           ))}
         </div>
       </fieldset>
-      <label className="flex items-start gap-2 text-[12.5px] text-ink-200">
+      <label className="flex items-start gap-2 text-sm text-body">
         <input
           type="checkbox"
           checked={wholePassage}
           onChange={(event) => setWholePassage(event.target.checked)}
-          className="mt-0.5 accent-signal"
+          className="mt-0.5 accent-primary"
         />
         <span>
           Apply to the whole passage
-          <span className="block text-[11.5px] text-ink-500">
+          <span className="block text-xs text-muted">
             Every statement read from the same sentence or row
-            {siblings > 0 ? ` (${plural(siblings, 'other statement')} in this finding)` : ''}. A sentence that
-            misreads a number misreads what it says with it.
+            {siblings > 0
+              ? ` (${plural(siblings, 'other statement')} in this finding)`
+              : ''}
+            . A sentence that misreads a number misreads what it says with it.
           </span>
         </span>
       </label>
@@ -256,7 +321,10 @@ export function PassageDecisionForm({
   state: ReviewState
   submitLabel: string
   onClose?: () => void
-  fallbackSummaries?: Record<string, { summary: string; kind: Kind; document: string | null }>
+  fallbackSummaries?: Record<
+    string,
+    { summary: string; kind: Kind; document: string | null }
+  >
 }) {
   const { workspaceId } = useDecisions()
   const { evidence } = useFindingTables()
@@ -290,21 +358,30 @@ export function PassageDecisionForm({
       result={result}
     >
       <div>
-        <Legend>
-          {plural(groups.length, 'passage')} · {plural(keys.length, 'statement')} · marked {state}
-        </Legend>
+        <FieldLabel>
+          {plural(groups.length, 'passage')} ·{' '}
+          {plural(keys.length, 'statement')} · marked {state}
+        </FieldLabel>
         <ul className="mt-1.5 space-y-1">
           {groups.map((group) => {
             const lead = group.lead
             const fallback = fallbackSummaries?.[group.members[0]]
             return (
-              <li key={group.key} className="flex items-start gap-2 text-[12px] text-ink-200">
+              <li
+                key={group.key}
+                className="flex items-start gap-2 text-xs text-body"
+              >
                 <KindLabel kind={lead?.kind ?? fallback?.kind ?? 'claim'} />
                 <span className="min-w-0">
-                  <span className="block">{lead?.summary ?? fallback?.summary ?? group.members[0]}</span>
-                  <span className="block font-mono text-[11px] text-ink-500">
-                    {lead?.document?.filename ?? fallback?.document ?? 'original not named'}
-                    {group.members.length > 1 && ` · ${plural(group.members.length, 'statement')}`}
+                  <span className="block">
+                    {lead?.summary ?? fallback?.summary ?? group.members[0]}
+                  </span>
+                  <span className="block font-mono text-xs text-muted">
+                    {lead?.document?.filename ??
+                      fallback?.document ??
+                      'original not named'}
+                    {group.members.length > 1 &&
+                      ` · ${plural(group.members.length, 'statement')}`}
                   </span>
                 </span>
               </li>
@@ -319,10 +396,26 @@ export function PassageDecisionForm({
 
 // --- Identity --------------------------------------------------------------------------
 
-const IDENTITY_CHOICES: { value: IdentityState; label: string; meaning: string }[] = [
-  { value: 'accepted', label: 'Same person', meaning: 'Cite what shows it. Joins the two references.' },
-  { value: 'rejected', label: 'Different people', meaning: 'Keeps the references apart for good.' },
-  { value: 'deferred', label: 'Defer', meaning: 'Inconclusive for now; stays unconfirmed.' },
+const IDENTITY_CHOICES: {
+  value: IdentityState
+  label: string
+  meaning: string
+}[] = [
+  {
+    value: 'accepted',
+    label: 'Same person',
+    meaning: 'Cite what shows it. Joins the two references.',
+  },
+  {
+    value: 'rejected',
+    label: 'Different people',
+    meaning: 'Keeps the references apart for good.',
+  },
+  {
+    value: 'deferred',
+    label: 'Defer',
+    meaning: 'Inconclusive for now; stays unconfirmed.',
+  },
 ]
 
 export function IdentityDecisionForm({
@@ -333,7 +426,12 @@ export function IdentityDecisionForm({
 }: {
   candidate: CandidateOut
   initialState?: IdentityState
-  extraEvidence?: { key: string; summary: string; kind: Kind; document: string | null }[]
+  extraEvidence?: {
+    key: string
+    summary: string
+    kind: Kind
+    document: string | null
+  }[]
   onClose?: () => void
 }) {
   const { workspaceId } = useDecisions()
@@ -347,7 +445,14 @@ export function IdentityDecisionForm({
   // What the candidate was proposed on, then anything else the task points to.
   const options = useMemo(() => {
     const seen = new Set<string>()
-    const out: { key: string; summary: string; kind: Kind; document: string | null; identifier: string | null; active: boolean }[] = []
+    const out: {
+      key: string
+      summary: string
+      kind: Kind
+      document: string | null
+      identifier: string | null
+      active: boolean
+    }[] = []
     for (const shared of candidate.shared) {
       for (const key of shared.evidence) {
         if (seen.has(key)) continue
@@ -366,13 +471,18 @@ export function IdentityDecisionForm({
     for (const extra of extraEvidence) {
       if (seen.has(extra.key)) continue
       seen.add(extra.key)
-      out.push({ ...extra, identifier: null, active: evidence[extra.key]?.active ?? true })
+      out.push({
+        ...extra,
+        identifier: null,
+        active: evidence[extra.key]?.active ?? true,
+      })
     }
     return out
   }, [candidate.shared, evidence, extraEvidence])
 
   const needsEvidence = state === 'accepted'
-  const canSubmit = reason.trim().length >= MIN_REASON && (!needsEvidence || cited.size > 0)
+  const canSubmit =
+    reason.trim().length >= MIN_REASON && (!needsEvidence || cited.size > 0)
 
   function toggle(key: string) {
     setCited((current) => {
@@ -388,16 +498,19 @@ export function IdentityDecisionForm({
       title="Identity"
       description={<>Are {candidateText(candidate, people)} one person?</>}
       onSubmit={() =>
-        void submit(`${state} identity ${personText(people[candidate.a])} / ${personText(people[candidate.b])}`, [
-          (expected) =>
-            inv.decideIdentity(workspaceId, {
-              candidate: candidate.key,
-              state,
-              evidence: [...cited],
-              reason: reason.trim(),
-              expected_version: expected,
-            }),
-        ])
+        void submit(
+          `${state} identity ${personText(people[candidate.a])} / ${personText(people[candidate.b])}`,
+          [
+            (expected) =>
+              inv.decideIdentity(workspaceId, {
+                candidate: candidate.key,
+                state,
+                evidence: [...cited],
+                reason: reason.trim(),
+                expected_version: expected,
+              }),
+          ],
+        )
       }
       onCancel={onClose}
       submitLabel="Record identity decision"
@@ -406,13 +519,15 @@ export function IdentityDecisionForm({
       result={result}
     >
       <fieldset>
-        <legend className="legend">Decision</legend>
+        <legend className="field-label">Decision</legend>
         <div className="mt-1.5 grid gap-1.5 sm:grid-cols-3">
           {IDENTITY_CHOICES.map((choice) => (
             <label
               key={choice.value}
               className={`flex cursor-pointer items-start gap-2 border px-2.5 py-2 transition-colors ${
-                state === choice.value ? 'border-signal bg-signal/10' : `${RULE} hover:border-ink-700`
+                state === choice.value
+                  ? 'border-primary bg-primary/10'
+                  : `${BORDER} hover:border-muted`
               }`}
             >
               <input
@@ -421,11 +536,15 @@ export function IdentityDecisionForm({
                 value={choice.value}
                 checked={state === choice.value}
                 onChange={() => setState(choice.value)}
-                className="mt-0.5 accent-signal"
+                className="mt-0.5 accent-primary"
               />
               <span>
-                <span className="block text-[12.5px] font-medium text-ink-100">{choice.label}</span>
-                <span className="block text-[11.5px] leading-snug text-ink-500">{choice.meaning}</span>
+                <span className="block text-sm font-medium text-heading">
+                  {choice.label}
+                </span>
+                <span className="block text-xs leading-snug text-muted">
+                  {choice.meaning}
+                </span>
               </span>
             </label>
           ))}
@@ -433,32 +552,32 @@ export function IdentityDecisionForm({
       </fieldset>
 
       <fieldset>
-        <legend className="legend">
+        <legend className="field-label">
           Evidence cited {needsEvidence ? '— required to accept' : '— optional'}
         </legend>
         {options.length === 0 ? (
-          <p className="mt-1.5 text-[12px] text-ink-500">
-            No shared identifier is on file for this pair; it was proposed on the name alone. Nothing here can be
-            cited to accept it.
+          <p className="mt-1.5 text-xs text-muted">
+            No shared identifier is on file for this pair; it was proposed on
+            the name alone. Nothing here can be cited to accept it.
           </p>
         ) : (
           <ul className="mt-1.5 space-y-1">
             {options.map((option) => (
               <li key={option.key}>
                 <label
-                  className={`flex items-start gap-2 text-[12px] ${option.active ? 'cursor-pointer text-ink-200' : 'text-ink-500'}`}
+                  className={`flex items-start gap-2 text-xs ${option.active ? 'cursor-pointer text-body' : 'text-muted'}`}
                 >
                   <input
                     type="checkbox"
                     checked={cited.has(option.key)}
                     disabled={!option.active}
                     onChange={() => toggle(option.key)}
-                    className="mt-0.5 accent-signal"
+                    className="mt-0.5 accent-primary"
                   />
                   <KindLabel kind={option.kind} />
                   <span className="min-w-0">
                     <span className="block">{option.summary}</span>
-                    <span className="block font-mono text-[11px] text-ink-500">
+                    <span className="block font-mono text-xs text-muted">
                       {option.document ?? 'original not named'}
                       {option.identifier && ` · shares ${option.identifier}`}
                       {!option.active && ' · not in use, cannot be cited'}
@@ -542,17 +661,21 @@ export function GroupingDecisionForm({
 
   return (
     <FormShell
-      title={state === 'accepted' ? 'It repeats the origin' : 'It is independent'}
+      title={
+        state === 'accepted' ? 'It repeats the origin' : 'It is independent'
+      }
       description={
         state === 'accepted' ? (
           <>
             Record that <span className="font-mono">{derivative}</span> repeats{' '}
-            <span className="font-mono">{origin}</span>. The two count as one origin, not as corroboration.
+            <span className="font-mono">{origin}</span>. The two count as one
+            origin, not as corroboration.
           </>
         ) : (
           <>
-            Record that <span className="font-mono">{derivative}</span> is independent of{' '}
-            <span className="font-mono">{origin}</span>. Each then counts as its own origin.
+            Record that <span className="font-mono">{derivative}</span> is
+            independent of <span className="font-mono">{origin}</span>. Each
+            then counts as its own origin.
           </>
         )
       }
@@ -561,7 +684,12 @@ export function GroupingDecisionForm({
           `${state} grouping of ${derivative} with ${origin}`,
           links.map(
             (link) => (expected: number) =>
-              inv.decideGrouping(workspaceId, { link, state, reason: reason.trim(), expected_version: expected }),
+              inv.decideGrouping(workspaceId, {
+                link,
+                state,
+                reason: reason.trim(),
+                expected_version: expected,
+              }),
           ),
         )
       }

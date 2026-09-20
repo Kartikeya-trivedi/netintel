@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 
 import type { FindingDetail, Task, TaskGrounds } from '../../api/investigation'
 import { plural } from '../../lib/format'
-import { Legend } from '../Instrument'
-import { ActionButton, KindLabel, ReadoutStrip, Tag, type Tone } from './Controls'
+import { FieldLabel } from '../../ui'
+import { Button, KindLabel, StatStrip, Chip, type Tone } from './shared'
 import { TaskOutcomeForm } from './DecisionForms'
 import EvidenceRow from './EvidenceRow'
 import type { TryScenario } from './SensitivityPanel'
 import { StatusChange } from './StatusBadge'
 import { TASK_KIND } from './model'
+import { readableDates } from '../../ui/copy'
 
 /** One verification task: the question, what to read to answer it, what each
  *  answer would change, and a way to record the answer.
@@ -64,9 +65,20 @@ function consequence(task: Task, outcome: Outcome): string {
   }
 }
 
-export default function TaskCard({ task, detail, onTry }: { task: Task; detail: FindingDetail; onTry: TryScenario }) {
+export default function TaskCard({
+  task,
+  detail,
+  onTry,
+}: {
+  task: Task
+  detail: FindingDetail
+  onTry: TryScenario
+}) {
   const [open, setOpen] = useState<string | null>(null)
-  const meta = TASK_KIND[task.kind] ?? { label: task.kind, effort: (n: number) => `${plural(n, 'item')} to read` }
+  const meta = TASK_KIND[task.kind] ?? {
+    label: task.kind,
+    effort: (n: number) => `${plural(n, 'item')} to read`,
+  }
   const grounds = GROUNDS[task.grounds] ?? GROUNDS['unreviewed assumption']
 
   // The derivative and its origin, for comparing the two side by side.
@@ -75,43 +87,58 @@ export default function TaskCard({ task, detail, onTry }: { task: Task; detail: 
     const derived = task.evidence
       .map((item) => detail.evidence[item.key])
       .find((item) => item?.lineage?.origin_document)
-    const documents = [...new Set(task.evidence.map((item) => item.document ?? 'original not named'))]
+    const documents = [
+      ...new Set(
+        task.evidence.map((item) => item.document ?? 'original not named'),
+      ),
+    ]
     const derivative = derived?.document?.filename ?? documents[0] ?? 'the copy'
-    const origin = derived?.lineage?.origin_document ?? documents.find((doc) => doc !== derivative) ?? 'the origin'
+    const origin =
+      derived?.lineage?.origin_document ??
+      documents.find((doc) => doc !== derivative) ??
+      'the origin'
     return { derivative, origin }
   }, [detail.evidence, task])
 
   return (
-    <article className="bezel border hairline bg-ink-950/70">
+    <article className="verification-task">
       <header className="px-4 pt-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Legend>{meta.label}</Legend>
-          <Tag tone={grounds.tone} title={grounds.note}>
+          <FieldLabel>{meta.label}</FieldLabel>
+          <Chip tone={grounds.tone} title={grounds.note}>
             {task.grounds}
-          </Tag>
+          </Chip>
           {task.status_changes > 0 ? (
-            <Tag tone="lead">Could change {plural(task.status_changes, 'finding')}</Tag>
+            <Chip tone="lead">
+              Could change {plural(task.status_changes, 'finding')}
+            </Chip>
           ) : (
-            <Tag tone="muted">Changes no finding's status</Tag>
+            <Chip tone="muted">Changes no finding's status</Chip>
           )}
         </div>
-        <h3 className="mt-1.5 text-[15px] font-medium leading-snug text-ink-100">{task.title}</h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{task.question}</p>
-        <p className="mt-1 text-[11.5px] text-ink-500">{grounds.note}</p>
+        <h3 className="mt-1.5 text-base font-medium leading-snug text-heading">
+          {readableDates(task.title)}
+        </h3>
+        <p className="mt-1 text-sm leading-relaxed text-body">
+          {readableDates(task.question)}
+        </p>
+        <p className="mt-1 text-xs text-muted">{grounds.note}</p>
       </header>
 
       <div className="mt-3 px-4">
-        <ReadoutStrip
+        <StatStrip
           cells={[
             {
               label: 'Status changes',
               value: plural(task.status_changes, 'finding'),
-              title: 'Findings whose status differs between the possible answers.',
+              title:
+                'Findings whose status differs between the possible answers.',
             },
             {
               label: 'Chain changes',
               value: task.explanation_changes,
-              title: 'Explanations that appear or disappear between the possible answers.',
+              title:
+                'Explanations that appear or disappear between the possible answers.',
             },
             { label: 'Effort', value: meta.effort(task.effort) },
             { label: 'Availability', value: task.availability },
@@ -120,28 +147,39 @@ export default function TaskCard({ task, detail, onTry }: { task: Task; detail: 
       </div>
 
       <div className="mt-3 px-4">
-        <Legend>What to inspect · {task.evidence.length}</Legend>
+        <FieldLabel>What to inspect · {task.evidence.length}</FieldLabel>
         {lineagePair ? (
-          <div className="mt-1.5 grid gap-px border hairline gap-fill md:grid-cols-2">
-            {[lineagePair.derivative, lineagePair.origin].map((document, index) => (
-              <div key={document} className="bg-ink-1000 px-3 py-2">
-                <p className="legend">
-                  {index === 0 ? 'Possible copy' : 'Proposed origin'} ·{' '}
-                  <span className="font-mono normal-case tracking-normal text-ink-200">{document}</span>
-                </p>
-                <div className="mt-1.5 space-y-1.5">
-                  {task.evidence
-                    .filter((item) => (item.document ?? 'original not named') === document)
-                    .map((item) =>
-                      detail.evidence[item.key] ? (
-                        <EvidenceRow key={item.key} evidenceKey={item.key} allowReview={false} />
-                      ) : (
-                        <PlainEvidence key={item.key} item={item} />
-                      ),
-                    )}
+          <div className="mt-1.5 grid gap-px border border-border bg-border md:grid-cols-2">
+            {[lineagePair.derivative, lineagePair.origin].map(
+              (document, index) => (
+                <div key={document} className="bg-canvas px-3 py-2">
+                  <p className="field-label">
+                    {index === 0 ? 'Possible copy' : 'Proposed origin'} ·{' '}
+                    <span className="font-mono normal-case tracking-normal text-body">
+                      {document}
+                    </span>
+                  </p>
+                  <div className="mt-1.5 space-y-1.5">
+                    {task.evidence
+                      .filter(
+                        (item) =>
+                          (item.document ?? 'original not named') === document,
+                      )
+                      .map((item) =>
+                        detail.evidence[item.key] ? (
+                          <EvidenceRow
+                            key={item.key}
+                            evidenceKey={item.key}
+                            allowReview={false}
+                          />
+                        ) : (
+                          <PlainEvidence key={item.key} item={item} />
+                        ),
+                      )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ),
+            )}
           </div>
         ) : (
           <div className="mt-1.5 space-y-1.5">
@@ -156,22 +194,29 @@ export default function TaskCard({ task, detail, onTry }: { task: Task; detail: 
         )}
       </div>
 
-      <div className="mt-4 border-t hairline px-4 py-3">
-        <Legend>Possible answers and what each would change</Legend>
-        <ul className="mt-2 divide-y divide-rule border hairline">
+      <div className="mt-4 border-t border-border px-4 py-3">
+        <FieldLabel>Possible answers and what each would change</FieldLabel>
+        <ul className="mt-2 divide-y divide-border border border-border">
           {task.outcomes.map((outcome) => {
             const hasOverrides = Object.keys(outcome.overrides).length > 0
             return (
               <li key={outcome.key} className="px-3 py-2.5">
                 <div className="grid gap-2 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)]">
-                  <p className="text-[13px] font-medium text-ink-100">{outcome.label}</p>
+                  <p className="text-sm font-medium text-heading">
+                    {outcome.label}
+                  </p>
                   <div>
                     {outcome.changes.length === 0 ? (
-                      <p className="text-[12px] text-ink-500">No finding changes status.</p>
+                      <p className="text-xs text-muted">
+                        No finding changes status.
+                      </p>
                     ) : (
                       <ul className="space-y-1">
                         {outcome.changes.map((change) => (
-                          <li key={change.finding} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-ink-200">
+                          <li
+                            key={change.finding}
+                            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-body"
+                          >
                             <span>{change.title}</span>
                             <StatusChange from={change.from} to={change.to} />
                           </li>
@@ -181,16 +226,26 @@ export default function TaskCard({ task, detail, onTry }: { task: Task; detail: 
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <ActionButton
+                  <Button
                     aria-expanded={open === outcome.key}
-                    onClick={() => setOpen(open === outcome.key ? null : outcome.key)}
+                    onClick={() =>
+                      setOpen(open === outcome.key ? null : outcome.key)
+                    }
                   >
                     Record: {outcome.label}
-                  </ActionButton>
+                  </Button>
                   {hasOverrides && (
-                    <ActionButton variant="link" onClick={() => onTry(`${task.title} — ${outcome.label}`, outcome.overrides)}>
+                    <Button
+                      variant="link"
+                      onClick={() =>
+                        onTry(
+                          `${task.title} — ${outcome.label}`,
+                          outcome.overrides,
+                        )
+                      }
+                    >
                       Try as scenario
-                    </ActionButton>
+                    </Button>
                   )}
                 </div>
 
@@ -207,7 +262,7 @@ export default function TaskCard({ task, detail, onTry }: { task: Task; detail: 
           })}
         </ul>
         {task.affected.length > 0 && (
-          <p className="mt-2 text-[11.5px] text-ink-500">
+          <p className="mt-2 text-xs text-muted">
             Bears on: {task.affected.map((item) => item.title).join('; ')}.
           </p>
         )}
@@ -218,11 +273,13 @@ export default function TaskCard({ task, detail, onTry }: { task: Task; detail: 
 
 function PlainEvidence({ item }: { item: Task['evidence'][number] }) {
   return (
-    <div className="flex items-start gap-2 border-l-2 border-ink-800 py-1 pl-3">
+    <div className="flex items-start gap-2 border-l-2 border-line py-1 pl-3">
       <KindLabel kind={item.kind} />
       <span className="min-w-0">
-        <span className="block text-[12.5px] text-ink-100">{item.summary}</span>
-        <span className="block font-mono text-[11px] text-ink-500">{item.document ?? 'original not named'}</span>
+        <span className="block text-sm text-heading">{item.summary}</span>
+        <span className="block font-mono text-xs text-muted">
+          {item.document ?? 'original not named'}
+        </span>
       </span>
     </div>
   )

@@ -1,14 +1,26 @@
 import { useEffect, useState } from 'react'
 
-import type { Counts, Derivation, EdgeOut, Explanation, Step } from '../../api/investigation'
+import type {
+  Counts,
+  Derivation,
+  EdgeOut,
+  Explanation,
+  Step,
+} from '../../api/investigation'
 import { plural } from '../../lib/format'
-import { Legend } from '../Instrument'
+import { FieldLabel } from '../../ui'
 import CandidateCard from './CandidateCard'
-import { ActionButton, LEGEND, PersonRef, Tag, personText } from './Controls'
+import { Button, LABEL, PersonRef, Chip, personText } from './shared'
 import EvidenceRow from './EvidenceRow'
 import { useFindingTables } from './FindingTables'
 import StatusBadge from './StatusBadge'
-import { CANDIDATE_STATUS, EDGE_GROUPS, candidateText, chainTokens, identityTitle } from './model'
+import {
+  CANDIDATE_STATUS,
+  EDGE_GROUPS,
+  candidateText,
+  chainTokens,
+  identityTitle,
+} from './model'
 
 /** One chain of people, hop by hop, down to the rows each hop rests on.
  *
@@ -59,79 +71,118 @@ export default function ExplanationCard({
   }, [fold])
 
   return (
-    <article className="bezel border hairline bg-ink-950/70">
-      <header className="px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Legend>Explanation {index + 1}</Legend>
-          <StatusBadge status={explanation.status} />
-          {headline && <Tag tone="neutral">Headline</Tag>}
+    <article className="explanation-sheet">
+      <header className="px-5 py-4">
+        <div className="explanation-topline">
+          <h3>
+            Chain {String(index + 1).padStart(2, '0')}
+            {headline && <span>Primary explanation</span>}
+          </h3>
+          <StatusBadge status={explanation.status} short />
+        </div>
+        <div className="explanation-caveats">
           {explanation.provisional.length > 0 && (
-            <Tag tone="lead">{plural(explanation.provisional.length, 'unconfirmed identity', 'unconfirmed identities')}</Tag>
+            <Chip tone="lead">
+              {plural(
+                explanation.provisional.length,
+                'unconfirmed identity',
+                'unconfirmed identities',
+              )}
+            </Chip>
           )}
           {explanation.hubs.length > 0 && (
-            <Tag
+            <Chip
               tone="lead"
               title="Someone many unrelated people contact (a driver, a shop). A route through them is a lead, not support."
             >
               Passes high-activity contact
-            </Tag>
+            </Chip>
           )}
           {explanation.contested && (
-            <Tag tone="signal" title="Part of this chain rests on a claim that a record contradicts.">
+            <Chip
+              tone="signal"
+              title="Part of this chain rests on a claim that a record contradicts."
+            >
               Contested by a record
-            </Tag>
+            </Chip>
           )}
           {explanation.alternatives > 0 && (
-            <Tag
+            <Chip
               tone="neutral"
               title="Other routings through the same people (via another case reference of the same name). The one assuming least is shown."
             >
               {plural(explanation.alternatives, 'alternative routing')}
-            </Tag>
+            </Chip>
           )}
         </div>
 
-        <p className="mt-2 text-[14px] leading-relaxed text-ink-100">
+        <p className="explanation-route">
           {tokens.map((token, position) => (
             <span key={token.keys.join('+')}>
               {position > 0 && (
-                <span aria-hidden="true" className="mx-2 text-signal-dim">
+                <span aria-hidden="true" className="mx-2 text-primary-hover">
                   →
                 </span>
               )}
               {position > 0 && <span className="sr-only"> to </span>}
               <span
                 className={
-                  token.identity?.provisional ? 'underline decoration-status-lead decoration-dotted underline-offset-4' : ''
+                  token.identity?.provisional
+                    ? 'underline decoration-status-lead decoration-dotted underline-offset-4'
+                    : ''
                 }
               >
                 {token.label}
               </span>{' '}
-              <span className="readout text-[11px] text-ink-500">({token.cases.join(' / ')})</span>
+              <span className="numeric text-xs text-muted">
+                ({token.cases.join(' / ')})
+              </span>
               {token.identity && (
-                <span className="ml-1 text-[11px] text-status-lead">
-                  {token.identity.provisional ? 'identity unconfirmed' : 'identity accepted'}
+                <span className="ml-1 text-xs text-status-lead">
+                  {token.identity.provisional
+                    ? 'identity unconfirmed'
+                    : 'identity accepted'}
                 </span>
               )}
-              {token.hub && <span className="ml-1 text-[11px] text-status-lead">high-activity contact</span>}
+              {token.hub && (
+                <span className="ml-1 text-xs text-status-lead">
+                  high-activity contact
+                </span>
+              )}
             </span>
           ))}
         </p>
 
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="readout text-[11px] text-ink-500">
-            {plural(explanation.hops, 'hop')} · {countsText(explanation.counts)}
-          </p>
-          <ActionButton variant="link" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((v) => !v)}>
+          <details className="explanation-breakdown">
+            <summary>
+              {plural(explanation.hops, 'hop')} ·{' '}
+              {plural(explanation.counts.observations, 'statement')}
+              <span aria-hidden="true">+</span>
+            </summary>
+            <p>{countsText(explanation.counts)}</p>
+          </details>
+          <Button
+            variant="link"
+            aria-expanded={open}
+            aria-controls={open ? bodyId : undefined}
+            onClick={() => setOpen((v) => !v)}
+          >
             {open ? 'Hide the evidence' : 'Show the evidence'}
-          </ActionButton>
+          </Button>
         </div>
       </header>
 
       {open && (
-        <ol id={bodyId} className="divide-y divide-rule border-t hairline">
+        <ol
+          id={bodyId}
+          className="divide-y divide-border border-t border-border"
+        >
           {explanation.steps.map((step) => (
-            <li key={`${step.index}-${step.source}-${step.target}`} className="px-4 py-3">
+            <li
+              key={`${step.index}-${step.source}-${step.target}`}
+              className="explanation-step"
+            >
               <StepBlock step={step} showText={showText} fold={fold} />
             </li>
           ))}
@@ -141,31 +192,53 @@ export default function ExplanationCard({
   )
 }
 
-function StepBlock({ step, showText, fold }: { step: Step; showText: boolean; fold: FoldCommand | null }) {
+function StepBlock({
+  step,
+  showText,
+  fold,
+}: {
+  step: Step
+  showText: boolean
+  fold: FoldCommand | null
+}) {
   const { people, candidates } = useFindingTables()
   const source = people[step.source]
   const target = people[step.target]
 
   if (step.identity) {
-    const keys = [...new Set(step.edges.flatMap((edge) => edge.derivations.flatMap((d) => d.identity)))]
+    const keys = [
+      ...new Set(
+        step.edges.flatMap((edge) =>
+          edge.derivations.flatMap((d) => d.identity),
+        ),
+      ),
+    ]
     return (
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <Legend>Identity step</Legend>
-          <Tag tone={step.provisional ? 'lead' : 'signal'}>{identityTitle(step.provisional)}</Tag>
+          <FieldLabel>Identity step</FieldLabel>
+          <Chip tone={step.provisional ? 'lead' : 'signal'}>
+            {identityTitle(step.provisional)}
+          </Chip>
         </div>
-        <p className="mt-1.5 text-[13px]">
+        <p className="mt-1.5 text-sm">
           <PersonRef person={source} fallback={step.source} />
-          <span className="mx-2 text-ink-500">treated as</span>
+          <span className="mx-2 text-muted">treated as</span>
           <PersonRef person={target} fallback={step.target} />
         </p>
         <div className="mt-2 space-y-2">
           {keys.map((key) =>
             candidates[key] ? (
-              <CandidateCard key={key} candidate={candidates[key]} showText={showText} compact />
+              <CandidateCard
+                key={key}
+                candidate={candidates[key]}
+                showText={showText}
+                compact
+              />
             ) : (
-              <p key={key} className="text-[12px] text-ink-500">
-                Identity candidate <span className="font-mono">{key}</span> is not included in this response.
+              <p key={key} className="text-xs text-muted">
+                Identity candidate <span className="font-mono">{key}</span> is
+                not included in this response.
               </p>
             ),
           )}
@@ -182,16 +255,19 @@ function StepBlock({ step, showText, fold }: { step: Step; showText: boolean; fo
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <Legend>Hop {step.index + 1}</Legend>
+        <FieldLabel>Hop {step.index + 1}</FieldLabel>
         {step.contested && (
-          <Tag tone="signal" title="Every relationship in this hop rests on something a record contradicts.">
+          <Chip
+            tone="signal"
+            title="Every relationship in this hop rests on something a record contradicts."
+          >
             Contested by a record
-          </Tag>
+          </Chip>
         )}
       </div>
-      <p className="mt-1.5 text-[13px]">
+      <p className="mt-1.5 text-sm">
         <PersonRef person={source} fallback={step.source} />
-        <span aria-hidden="true" className="mx-2 text-signal-dim">
+        <span aria-hidden="true" className="mx-2 text-primary-hover">
           →
         </span>
         <span className="sr-only"> to </span>
@@ -201,13 +277,20 @@ function StepBlock({ step, showText, fold }: { step: Step; showText: boolean; fo
       <div className="mt-2.5 space-y-3">
         {groups.map((group) => (
           <section key={group.type}>
-            <h4 className={`${LEGEND} text-ink-400`}>
-              {group.type === 'SAME_AS' ? identityTitle(step.provisional) : group.title}
+            <h4 className={`${LABEL} text-body`}>
+              {group.type === 'SAME_AS'
+                ? identityTitle(step.provisional)
+                : group.title}
             </h4>
-            <p className="text-[11.5px] text-ink-500">{group.note}</p>
+            <p className="text-xs text-muted">{group.note}</p>
             <div className="mt-1.5 space-y-2">
               {group.edges.map((edge) => (
-                <EdgeBlock key={edge.key} edge={edge} showText={showText} fold={fold} />
+                <EdgeBlock
+                  key={edge.key}
+                  edge={edge}
+                  showText={showText}
+                  fold={fold}
+                />
               ))}
             </div>
           </section>
@@ -217,9 +300,21 @@ function StepBlock({ step, showText, fold }: { step: Step; showText: boolean; fo
   )
 }
 
-function EdgeBlock({ edge, showText, fold }: { edge: EdgeOut; showText: boolean; fold: FoldCommand | null }) {
+function EdgeBlock({
+  edge,
+  showText,
+  fold,
+}: {
+  edge: EdgeOut
+  showText: boolean
+  fold: FoldCommand | null
+}) {
   const { people } = useFindingTables()
-  const needsEyes = edge.contested || edge.provisional || edge.type === 'CLAIMED' || edge.type === 'SAME_AS'
+  const needsEyes =
+    edge.contested ||
+    edge.provisional ||
+    edge.type === 'CLAIMED' ||
+    edge.type === 'SAME_AS'
   const [open, setOpen] = useState(needsEyes)
   const hidden = Math.max(0, edge.derivation_count - edge.derivations.length)
   const panelId = `edge-${edge.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`
@@ -229,37 +324,42 @@ function EdgeBlock({ edge, showText, fold }: { edge: EdgeOut; showText: boolean;
   }, [fold])
 
   return (
-    <div className="border hairline">
+    <div className="relationship-section">
       <button
         type="button"
         aria-expanded={open}
-        aria-controls={panelId}
+        aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-2 text-left tint-hover"
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-2 text-left hover:bg-subtle"
       >
-        <span aria-hidden="true" className="readout w-3 text-[11px] text-ink-500">
+        <span aria-hidden="true" className="numeric w-3 text-xs text-muted">
           {open ? '−' : '+'}
         </span>
-        <span className="text-[12.5px] text-ink-200">
+        <span className="text-sm text-body">
           {personText(people[edge.source], edge.source)}
-          <span aria-hidden="true" className="mx-1.5 text-ink-500">
+          <span aria-hidden="true" className="mx-1.5 text-muted">
             {edge.directed ? '→' : '—'}
           </span>
           <span className="sr-only">{edge.directed ? ' to ' : ' and '}</span>
           {personText(people[edge.target], edge.target)}
         </span>
-        <span className="readout text-[10.5px] text-ink-500">{countsText(edge.counts)}</span>
+        <span className="numeric text-xs text-muted">
+          {countsText(edge.counts)}
+        </span>
         <span className="ml-auto flex flex-wrap items-center gap-1">
-          {edge.contested && <Tag tone="signal">Contested by a record</Tag>}
-          {edge.provisional && <Tag tone="lead">Unreviewed</Tag>}
-          <Tag tone="muted">{plural(edge.derivation_count, 'derivation')}</Tag>
+          {edge.contested && <Chip tone="signal">Contested by a record</Chip>}
+          {edge.provisional && <Chip tone="lead">Unreviewed</Chip>}
+          <Chip tone="muted">
+            {plural(edge.derivation_count, 'derivation')}
+          </Chip>
         </span>
       </button>
 
       {open && (
-        <div id={panelId} className="border-t hairline px-2.5 py-2.5">
-          <p className="text-[11.5px] text-ink-500">
-            Holds while any one derivation holds. Each derivation needs every statement in it.
+        <div id={panelId} className="border-t border-border px-2.5 py-2.5">
+          <p className="text-xs text-muted">
+            Holds while any one derivation holds. Each derivation needs every
+            statement in it.
           </p>
           <ol className="mt-2 space-y-2">
             {edge.derivations.map((derivation, position) => (
@@ -269,15 +369,22 @@ function EdgeBlock({ edge, showText, fold }: { edge: EdgeOut; showText: boolean;
                   position={position}
                   total={edge.derivation_count}
                   showText={showText}
-                  quoted={new Set(edge.derivations.slice(0, position).flatMap((earlier) => earlier.evidence))}
+                  quoted={
+                    new Set(
+                      edge.derivations
+                        .slice(0, position)
+                        .flatMap((earlier) => earlier.evidence),
+                    )
+                  }
                 />
               </li>
             ))}
           </ol>
           {hidden > 0 && (
-            <p className="mt-2 border-l-2 border-ink-800 pl-3 text-[11.5px] text-ink-500">
-              +{plural(hidden, 'more alternative derivation')} not shown. They combine the same kinds of
-              statement differently; the counts above include them.
+            <p className="mt-2 border-l-2 border-line pl-3 text-xs text-muted">
+              +{plural(hidden, 'more alternative derivation')} not shown. They
+              combine the same kinds of statement differently; the counts above
+              include them.
             </p>
           )}
         </div>
@@ -305,16 +412,21 @@ function DerivationGroup({
   const parts = derivation.evidence.length + derivation.identity.length
 
   return (
-    <div className={`border-l-2 pl-2.5 ${derivation.contested ? 'border-signal/70' : 'border-ink-800'}`}>
+    <div
+      className={`border-l-2 pl-2.5 ${derivation.contested ? 'border-primary/70' : 'border-line'}`}
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="legend">
+        <span className="field-label">
           Derivation {position + 1} of {total}
           {parts > 1 ? ' — all of these must hold' : ''}
         </span>
         {derivation.contested && (
-          <Tag tone="signal" title="Rests on a claim that a record contradicts.">
+          <Chip
+            tone="signal"
+            title="Rests on a claim that a record contradicts."
+          >
             Contested
-          </Tag>
+          </Chip>
         )}
       </div>
       <div className="mt-1 space-y-0.5">
@@ -334,12 +446,16 @@ function DerivationGroup({
           return (
             <div key={key}>
               {(at > 0 || derivation.evidence.length > 0) && <AndRule />}
-              <p className="border-l-2 border-dotted border-status-lead py-1.5 pl-3 text-[12.5px] text-ink-200">
-                <span className={`${LEGEND} mr-2 text-status-lead`}>Assumes identity</span>
+              <p className="border-l-2 border-dotted border-status-lead py-1.5 pl-3 text-sm text-body">
+                <span className={`${LABEL} mr-2 text-status-lead`}>
+                  Assumes identity
+                </span>
                 {candidate ? (
                   <>
                     {candidateText(candidate, people)} are one person —{' '}
-                    <span className="text-ink-500">{CANDIDATE_STATUS[candidate.status].toLowerCase()}</span>
+                    <span className="text-muted">
+                      {CANDIDATE_STATUS[candidate.status].toLowerCase()}
+                    </span>
                   </>
                 ) : (
                   <span className="font-mono">{key}</span>
@@ -348,7 +464,11 @@ function DerivationGroup({
             </div>
           )
         })}
-        {parts === 0 && <p className="text-[12px] text-ink-500">No statements listed for this derivation.</p>}
+        {parts === 0 && (
+          <p className="text-xs text-muted">
+            No statements listed for this derivation.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -357,8 +477,8 @@ function DerivationGroup({
 function AndRule() {
   return (
     <div aria-hidden="true" className="flex items-center gap-2 py-0.5 pl-3">
-      <span className="font-cond text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-700">and</span>
-      <span className="h-px flex-1 bg-ink-850" />
+      <span className="text-xs font-semibold text-muted">and</span>
+      <span className="h-px flex-1 bg-border" />
     </div>
   )
 }

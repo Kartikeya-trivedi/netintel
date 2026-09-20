@@ -1,123 +1,176 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-
 import { api } from '../api/client'
 import type { Severity } from '../api/types'
-import AlertCard from '../components/AlertCard'
-import {
-  EmptyPanel,
-  ErrorNote,
-  Legend,
-  PageHeader,
-  Segmented,
-  Spinner,
-} from '../components/Instrument'
+import SignalQueue from '../components/signals/SignalQueue'
+import SignalReader from '../components/signals/SignalReader'
+import { EmptyState, ErrorNote, LoadingState } from '../ui'
+import { CountTab } from '../ui/Identity'
 import { useCase } from '../lib/CaseContext'
-import { useAsync } from '../lib/useApi'
+import { useScopedAsync } from '../lib/useApi'
 
 type Filter = 'all' | Severity
+const ORDER = { high: 0, medium: 1, low: 2 }
 
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-]
-
-/** Anomaly feed. Transaction spikes, structuring patterns, and communication
- *  bursts raised by the detection pass, newest and most severe first. */
 export default function Alerts() {
   const { activeCase, version } = useCase()
   const navigate = useNavigate()
   const caseId = activeCase?.id ?? null
-
   const [filter, setFilter] = useState<Filter>('all')
-
-  const alerts = useAsync(() => api.listAlerts(caseId!), [caseId, version], { enabled: caseId !== null })
-
-  const RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 }
-
-  const visible = useMemo(() => {
-    const rows = alerts.data ?? []
-    return rows
-      .filter((a) => filter === 'all' || a.severity === filter)
-      .slice()
-      .sort((a, b) => RANK[a.severity] - RANK[b.severity] || b.id - a.id)
-  }, [alerts.data, filter])
-
-  const openCount = (alerts.data ?? []).filter((a) => a.status === 'open').length
-
-  if (caseId === null) {
-    return (
-      <div className="mx-auto max-w-5xl px-6 py-8 sm:px-8">
-        <EmptyPanel title="No case loaded">
-          Seed the demo case from the Sources tab to raise signals against it.
-        </EmptyPanel>
-      </div>
+  const [selection, setSelection] = useState<{
+    caseId: number
+    id: number
+  } | null>(null)
+  const [reading, setReading] = useState(false)
+  const alerts = useScopedAsync(
+    () => api.listAlerts(caseId!),
+    `signals:${caseId}`,
+    [version],
+    { enabled: caseId !== null },
+  )
+  const visible = useMemo(
+    () =>
+      (alerts.data ?? [])
+        .filter((alert) => filter === 'all' || alert.severity === filter)
+        .slice()
+        .sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || b.id - a.id),
+    [alerts.data, filter],
+  )
+  const counts = useMemo(() => {
+    const result = { all: alerts.data?.length ?? 0, high: 0, medium: 0, low: 0 }
+    for (const alert of alerts.data ?? []) result[alert.severity] += 1
+    return result
+  }, [alerts.data])
+  const selected =
+    visible.find(
+      (alert) => selection?.caseId === caseId && alert.id === selection.id,
+    ) ??
+    visible[0] ??
+    null
+  const openCount = (alerts.data ?? []).filter(
+    (alert) => alert.status === 'open',
+  ).length
+  useEffect(() => {
+    if (
+      !reading ||
+      selection?.caseId !== caseId ||
+      !window.matchMedia('(max-width: 1023px)').matches
+    )
+      return
+    const reader = document.getElementById('signal-reader')
+    reader?.focus({ preventScroll: true })
+    reader?.scrollIntoView({ block: 'start' })
+  }, [reading, selection, caseId])
+  function backToQueue() {
+    setReading(false)
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLButtonElement>(
+          `.signal-row[data-signal="${selected?.id}"]`,
+        )
+        ?.focus(),
     )
   }
-
+  if (caseId === null)
+    return (
+      <div className="page-wrap">
+        <EmptyState title="No case loaded">
+          Load the synthetic demo from Sources to inspect its signals.
+        </EmptyState>
+      </div>
+    )
+  const filters: { value: Filter; label: string; tone?: string }[] = [
+    { value: 'all', label: 'All events' },
+    { value: 'high', label: 'High', tone: 'var(--color-sev-high)' },
+    { value: 'medium', label: 'Medium', tone: 'var(--color-sev-medium)' },
+    { value: 'low', label: 'Low', tone: 'var(--color-sev-low)' },
+  ]
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8 sm:px-8">
-      <PageHeader
-        eyebrow="Signals"
-        title="Anomaly feed"
-        aside={
-          alerts.data && alerts.data.length > 0 ? (
-            <div className="text-right">
-              <Legend>Open</Legend>
-              <p className="readout mt-1.5 text-2xl leading-none text-signal">{openCount}</p>
-            </div>
-          ) : undefined
-        }
-      >
-        Transaction spikes, structuring patterns, and communication bursts, ranked by
-        severity. Each signal carries the entities and the evidence behind the flag.
-      </PageHeader>
-
-      {alerts.data && alerts.data.length > 0 && (
-        <div className="mt-5 flex items-center justify-between gap-4">
-          <Segmented options={FILTERS} value={filter} onChange={setFilter} />
-          <Legend className="readout">
-            {visible.length} of {alerts.data.length}
-          </Legend>
+    <div
+      className="signals-workspace"
+      data-reading={reading && selection?.caseId === caseId}
+    >
+      <header className="signals-heading">
+        <div>
+          <h1>Signals</h1>
+          <p>Events that stand out in the case records.</p>
         </div>
-      )}
-
-      {alerts.loading && (
-        <div className="mt-6">
-          <Spinner label="Reading signals" />
+        <div className="signal-distribution">
+          <div>
+            <strong>{openCount}</strong>
+            <span>open for review</span>
+          </div>
+          <div
+            className="distribution-track"
+            role="img"
+            aria-label={`${counts.high} high, ${counts.medium} medium, ${counts.low} low priority`}
+          >
+            {(['high', 'medium', 'low'] as const).map(
+              (level) =>
+                counts[level] > 0 && (
+                  <span
+                    key={level}
+                    className={`distribution-${level}`}
+                    style={{ flex: counts[level] }}
+                  />
+                ),
+            )}
+          </div>
+          <p>
+            {counts.high} high<span>{counts.medium} medium</span>
+            <span>{counts.low} low</span>
+          </p>
         </div>
-      )}
-
-      {alerts.error && (
-        <div className="mt-6">
-          <ErrorNote message={alerts.error} />
-        </div>
-      )}
-
-      {alerts.data && alerts.data.length === 0 && (
-        <div className="mt-6">
-          <EmptyPanel title="No signals raised">
-            Nothing in this case has tripped a threshold. Signals appear here as
-            transactions, call records, and new links are ingested.
-          </EmptyPanel>
-        </div>
-      )}
-
-      {visible.length > 0 && (
-        <div className="stagger mt-5 grid gap-3 lg:grid-cols-2">
-          {visible.map((alert) => (
-            <AlertCard key={alert.id} alert={alert} onInspect={() => navigate('/graph')} />
+      </header>
+      <div className="signals-toolbar">
+        <div className="count-tabs" role="group" aria-label="Filter signals">
+          {filters.map((item) => (
+            <CountTab
+              key={item.value}
+              label={item.label}
+              count={counts[item.value]}
+              active={filter === item.value}
+              tone={item.tone}
+              onClick={() => {
+                setFilter(item.value)
+                setReading(false)
+              }}
+            />
           ))}
         </div>
+        <span className="signals-result-count">{visible.length} events</span>
+      </div>
+      {alerts.loading && <LoadingState label="Reading signals" />}
+      {alerts.error && <ErrorNote message={alerts.error} />}
+      {alerts.data?.length === 0 && (
+        <EmptyState title="No signals raised">
+          No detection threshold has been crossed in this case.
+        </EmptyState>
       )}
-
-      {alerts.data && alerts.data.length > 0 && visible.length === 0 && (
-        <div className="mt-6">
-          <EmptyPanel title={`No ${filter} signals`}>
-            Nothing at this severity. Switch the filter to see the rest of the feed.
-          </EmptyPanel>
+      {Boolean(alerts.data?.length) && (
+        <div className="signal-desk">
+          <SignalQueue
+            alerts={visible}
+            selectedId={selected?.id ?? null}
+            onSelect={(id) => {
+              setSelection({ caseId, id })
+              setReading(true)
+            }}
+          />
+          {selected ? (
+            <SignalReader
+              key={selected.id}
+              alert={selected}
+              onBack={backToQueue}
+              onInspect={() => navigate('/graph')}
+            />
+          ) : (
+            <div className="signal-reader signal-reader-empty">
+              <EmptyState title={`No ${filter} signals`}>
+                Select another priority to inspect the remaining events.
+              </EmptyState>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import type { CandidateOut } from '../../api/investigation'
 import { plural } from '../../lib/format'
-import { ActionButton, PersonRef, Tag } from './Controls'
+import { Button, PersonRef, Chip } from './shared'
 import { IdentityDecisionForm } from './DecisionForms'
 import EvidenceRow from './EvidenceRow'
 import { useFindingTables } from './FindingTables'
@@ -30,19 +30,20 @@ export default function CandidateCard({
   const reviewed = candidate.status !== 'proposed'
 
   return (
-    <div className="border hairline bg-ink-950/60">
+    <div className="candidate-panel">
       <div className="flex flex-wrap items-start justify-between gap-2 px-3 py-2.5">
         <div className="min-w-0">
-          <p className="text-[13px] text-ink-100">
+          <p className="text-sm text-heading">
             <PersonRef person={people[candidate.a]} fallback={candidate.a} />
-            <span className="mx-2 text-ink-500" aria-hidden="true">
+            <span className="mx-2 text-muted" aria-hidden="true">
               ≟
             </span>
             <span className="sr-only"> may be the same person as </span>
             <PersonRef person={people[candidate.b]} fallback={candidate.b} />
           </p>
-          <p className="mt-1 text-[12px] text-ink-500">
-            Proposed on {candidate.name_match ? 'the same name' : 'shared identifiers'}
+          <p className="mt-1 text-xs text-muted">
+            Proposed on{' '}
+            {candidate.name_match ? 'the same name' : 'shared identifiers'}
             {candidate.shared.length > 0
               ? ` and ${plural(candidate.shared.length, 'shared identifier')}`
               : candidate.name_match
@@ -55,37 +56,58 @@ export default function CandidateCard({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          <Tag tone={reviewed ? 'signal' : 'lead'}>{CANDIDATE_STATUS[candidate.status]}</Tag>
-          {candidate.provisional && !reviewed && <Tag tone="lead">Unconfirmed</Tag>}
+          <Chip tone={reviewed ? 'signal' : 'lead'}>
+            {CANDIDATE_STATUS[candidate.status]}
+          </Chip>
+          {candidate.provisional && !reviewed && (
+            <Chip tone="lead">Unconfirmed</Chip>
+          )}
         </div>
       </div>
 
       {candidate.shared.length > 0 && (
-        <div className="border-t hairline px-3 py-2">
+        <div className="border-t border-border px-3 py-2">
           {compact && (
-            <ActionButton variant="link" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-              {open ? 'Hide shared identifiers' : `Show ${plural(candidate.shared.length, 'shared identifier')}`}
-            </ActionButton>
+            <Button
+              variant="link"
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+            >
+              {open
+                ? 'Hide shared identifiers'
+                : `Show ${plural(candidate.shared.length, 'shared identifier')}`}
+            </Button>
           )}
           {open && (
             <ul className="mt-1 space-y-3">
               {candidate.shared.map((shared) => (
                 <li key={shared.identifier}>
-                  <p className="text-[12px] text-ink-200">
-                    <span className="readout text-ink-100">{shared.identifier}</span>
+                  <p className="text-xs text-body">
+                    <span className="numeric text-heading">
+                      {shared.identifier}
+                    </span>
                     <span className="ml-2">
                       {shared.overlapping ? (
-                        <Tag tone="neutral">Used by both at the same time</Tag>
+                        <Chip tone="neutral">
+                          Used by both at the same time
+                        </Chip>
                       ) : (
-                        <Tag tone="lead" title="Each reference used it, but never during the same period.">
+                        <Chip
+                          tone="lead"
+                          title="Each reference used it, but never during the same period."
+                        >
                           Held at different times — no overlap
-                        </Tag>
+                        </Chip>
                       )}
                     </span>
                   </p>
                   <div className="mt-1.5 space-y-1.5">
                     {shared.evidence.map((key) => (
-                      <EvidenceRow key={key} evidenceKey={key} showText={showText} />
+                      <EvidenceRow
+                        key={key}
+                        evidenceKey={key}
+                        showText={showText}
+                      />
                     ))}
                   </div>
                 </li>
@@ -95,11 +117,16 @@ export default function CandidateCard({
         </div>
       )}
 
-      <div className="border-t hairline px-3 py-2">
+      <div className="border-t border-border px-3 py-2">
         {!deciding ? (
-          <ActionButton onClick={() => setDeciding(true)}>Record identity decision</ActionButton>
+          <Button onClick={() => setDeciding(true)}>
+            Record identity decision
+          </Button>
         ) : (
-          <IdentityDecisionForm candidate={candidate} onClose={() => setDeciding(false)} />
+          <IdentityDecisionForm
+            candidate={candidate}
+            onClose={() => setDeciding(false)}
+          />
         )}
       </div>
     </div>

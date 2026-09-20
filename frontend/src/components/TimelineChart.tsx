@@ -1,5 +1,12 @@
 import {
-  Area, AreaChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceArea,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts'
 
 import { readThemeColor, useResolvedTheme } from '../lib/theme'
@@ -52,12 +59,12 @@ export default function TimelineChart({
         <CartesianGrid stroke={c.rule} vertical={false} />
         <XAxis
           dataKey="date"
-          tick={{ fill: c.axis, fontSize: 11 }}
+          tick={{ fill: c.axis, fontSize: 12 }}
           tickLine={false}
           stroke={c.rule}
         />
         <YAxis
-          tick={{ fill: c.axis, fontSize: 11 }}
+          tick={{ fill: c.axis, fontSize: 12 }}
           tickLine={false}
           axisLine={false}
         />
@@ -66,13 +73,18 @@ export default function TimelineChart({
           contentStyle={{
             background: c.paper,
             border: `1px solid ${c.rule}`,
-            borderRadius: 0,
+            borderRadius: 8,
             color: c.ink,
             fontSize: 12,
           }}
         />
         {anomalyStart && anomalyEnd && (
-          <ReferenceArea x1={anomalyStart} x2={anomalyEnd} fill={c.anomaly} fillOpacity={0.1} />
+          <ReferenceArea
+            x1={anomalyStart}
+            x2={anomalyEnd}
+            fill={c.anomaly}
+            fillOpacity={0.1}
+          />
         )}
         <Area
           type="monotone"

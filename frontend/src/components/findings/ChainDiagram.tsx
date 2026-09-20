@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 
 import type { Explanation, Step } from '../../api/investigation'
-import { LEGEND } from './Controls'
+import { LABEL } from './shared'
 import { useFindingTables } from './FindingTables'
 import { EDGE_VERB, hopTypes } from './model'
 
@@ -17,9 +17,18 @@ import { EDGE_VERB, hopTypes } from './model'
 
 const ARROW = { forward: '→', backward: '←', both: '↔', none: '' } as const
 
-function hopLabel(step: Step): { text: string; spoken: string; claimOnly: boolean } {
+function hopLabel(step: Step): {
+  text: string
+  spoken: string
+  claimOnly: boolean
+} {
   const types = hopTypes(step)
-  const text = types.map((t) => `${EDGE_VERB[t.type]}${ARROW[t.direction] ? ` ${ARROW[t.direction]}` : ''}`).join(' · ')
+  const text = types
+    .map(
+      (t) =>
+        `${EDGE_VERB[t.type]}${ARROW[t.direction] ? ` ${ARROW[t.direction]}` : ''}`,
+    )
+    .join(' · ')
   const spoken = types
     .map((t) => {
       const verb = EDGE_VERB[t.type]
@@ -33,13 +42,18 @@ function hopLabel(step: Step): { text: string; spoken: string; claimOnly: boolea
   return { text, spoken, claimOnly }
 }
 
-export default function ChainDiagram({ explanation }: { explanation: Explanation }) {
+export default function ChainDiagram({
+  explanation,
+}: {
+  explanation: Explanation
+}) {
   const { people } = useFindingTables()
   const nodes = explanation.nodes.length
     ? explanation.nodes
-    : [explanation.steps[0]?.source, ...explanation.steps.map((s) => s.target)].filter(
-        (key): key is string => Boolean(key),
-      )
+    : [
+        explanation.steps[0]?.source,
+        ...explanation.steps.map((s) => s.target),
+      ].filter((key): key is string => Boolean(key))
 
   const spoken = explanation.steps
     .map((step) => {
@@ -57,7 +71,10 @@ export default function ChainDiagram({ explanation }: { explanation: Explanation
   return (
     <figure>
       <figcaption className="sr-only">Chain: {spoken}.</figcaption>
-      <ol aria-hidden="true" className="relative flex items-stretch overflow-x-auto pb-1">
+      <ol
+        aria-hidden="true"
+        className="relative flex items-stretch overflow-x-auto pb-1"
+      >
         {nodes.map((key, index) => {
           const person = people[key]
           const step = index > 0 ? explanation.steps[index - 1] : null
@@ -66,17 +83,25 @@ export default function ChainDiagram({ explanation }: { explanation: Explanation
               {step && <Hop step={step} />}
               <li className="flex shrink-0">
                 <div
-                  className={`flex min-w-[112px] flex-col justify-center border bg-ink-950 px-2.5 py-1.5 ${
-                    person?.hub ? 'border-dashed border-status-lead/70' : 'hairline'
+                  className={`flex min-w-[136px] flex-col justify-center rounded-lg border bg-surface px-3 py-3 ${
+                    person?.hub
+                      ? 'border-dashed border-status-lead/70'
+                      : 'border-border'
                   }`}
                 >
-                  <span className="text-[12.5px] font-medium leading-tight text-ink-100">{person?.label ?? key}</span>
+                  <span className="text-sm font-medium leading-tight text-heading">
+                    {person?.label ?? key}
+                  </span>
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5">
-                    <span className="readout text-[10.5px] text-ink-500">{person?.case ?? '—'}</span>
-                    {person?.accused && <span className={`${LEGEND} text-ink-500`}>accused</span>}
+                    <span className="numeric text-xs text-muted">
+                      {person?.case ?? '—'}
+                    </span>
+                    {person?.accused && (
+                      <span className={`${LABEL} text-muted`}>accused</span>
+                    )}
                   </span>
                   {person?.hub && (
-                    <span className="mt-0.5 font-cond text-[9.5px] font-semibold uppercase tracking-[0.08em] text-status-lead">
+                    <span className="mt-0.5 text-xs font-semibold text-status-lead">
                       high-activity contact
                     </span>
                   )}
@@ -94,34 +119,40 @@ function Hop({ step }: { step: Step }) {
   if (step.identity) {
     return (
       <li className="flex min-w-[92px] flex-1 flex-col justify-center px-1.5">
-        <span className="text-center font-cond text-[10px] font-semibold uppercase tracking-[0.08em] text-status-lead">
-          {step.provisional ? 'same person? unreviewed' : 'same person, accepted'}
+        <span className="text-center text-xs font-semibold text-status-lead">
+          {step.provisional
+            ? 'same person? unreviewed'
+            : 'same person, accepted'}
         </span>
         <span
           className={`my-1 block border-t-2 ${
-            step.provisional ? 'border-dotted border-status-lead' : 'border-dashed border-ink-500'
+            step.provisional
+              ? 'border-dotted border-status-lead'
+              : 'border-dashed border-muted'
           }`}
         />
-        <span className="text-center text-[10px] text-ink-500">identity assumption</span>
+        <span className="text-center text-xs text-muted">
+          identity assumption
+        </span>
       </li>
     )
   }
   const label = hopLabel(step)
   return (
     <li className="flex min-w-[104px] flex-1 flex-col justify-center px-1.5">
-      <span className="text-center font-cond text-[10.5px] font-semibold tracking-[0.04em] text-ink-400">
+      <span className="text-center text-xs font-semibold text-body">
         {label.text || 'relationship'}
       </span>
       <span
-        className={`my-1 block border-t-2 ${step.contested ? 'border-signal' : 'border-ink-500'} ${
-          label.claimOnly ? 'opacity-60' : ''
+        className={`my-1 block border-t-2 ${step.contested ? 'border-primary' : 'border-muted'} ${
+          label.claimOnly ? 'border-dashed' : ''
         }`}
       />
-      <span className="text-center text-[10px]">
+      <span className="text-center text-xs">
         {step.contested ? (
-          <span className="font-cond font-semibold uppercase tracking-[0.08em] text-signal">contested</span>
+          <span className="font-semibold text-primary">contested</span>
         ) : label.claimOnly ? (
-          <span className="text-ink-500">claim only</span>
+          <span className="text-muted">claim only</span>
         ) : (
           <span aria-hidden="true">&nbsp;</span>
         )}

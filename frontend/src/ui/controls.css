@@ -1,0 +1,269 @@
+@layer components {
+  .control-popover {
+    position: relative;
+  }
+  .control-popover > summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 34px;
+    list-style: none;
+    padding: 6px 10px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 550;
+    border-radius: 5px;
+    transition:
+      background 140ms,
+      color 140ms;
+  }
+  .control-popover > summary::-webkit-details-marker {
+    display: none;
+  }
+  .control-popover > summary:hover,
+  .control-popover[open] > summary {
+    color: var(--color-heading);
+    background: var(--color-subtle);
+  }
+  .popover-chevron {
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    transform: rotate(45deg) translateY(-1px);
+  }
+  .control-popover[open] > summary .popover-chevron {
+    transform: rotate(225deg) translate(-1px, -1px);
+  }
+  .control-popover-body {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 40;
+    width: 300px;
+    max-width: calc(100vw - 36px);
+    max-height: 65dvh;
+    overflow: auto;
+    padding: 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    box-shadow: 0 8px 30px #0000001c;
+  }
+  .control-popover-body h3,
+  .preferences-title {
+    color: var(--color-heading);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .control-popover-body > p:not(.preferences-title) {
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--color-body);
+  }
+  .control-popover-body > p + p {
+    margin-top: 10px;
+  }
+  .workspace-preferences .appearance-picker {
+    display: grid;
+    grid-template-columns: 1fr 100px;
+    gap: 10px;
+    align-items: center;
+    padding-block: 10px;
+  }
+  .workspace-preferences .appearance-picker .sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    clip: auto;
+    overflow: visible;
+    white-space: normal;
+  }
+  .workspace-preferences .appearance-disc {
+    display: none;
+  }
+  .workspace-preferences .appearance-picker select {
+    border: 1px solid var(--color-border);
+    padding: 6px 8px;
+    width: 100%;
+  }
+  .workspace-preferences .context-identity {
+    display: grid;
+    gap: 9px;
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+    margin-top: 10px;
+    padding: 16px 0 0;
+  }
+  .workspace-preferences .context-identity select {
+    border: 1px solid var(--color-border);
+    padding: 7px 8px;
+    max-width: 100%;
+    width: 100%;
+    min-height: 36px;
+  }
+  .quick-switch-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    min-height: 34px;
+    color: var(--color-muted);
+    font-size: 12px;
+    border-radius: 5px;
+  }
+  .quick-switch-trigger:hover {
+    color: var(--color-heading);
+    background: var(--color-subtle);
+  }
+  kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 19px;
+    height: 20px;
+    padding: 0 5px;
+    border: 1px solid var(--color-border);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    font-family: var(--font-sans);
+    font-size: 10px;
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+  .quick-switch-trigger kbd {
+    margin-left: 14px;
+  }
+  .dialog:has(.quick-switcher) {
+    width: min(570px, calc(100vw - 32px));
+    margin: 12dvh auto auto;
+  }
+  .dialog:has(.quick-switcher) .dialog-body {
+    padding: 18px;
+  }
+  .dialog:has(.quick-switcher) .dialog-body > header {
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+  .dialog:has(.quick-switcher) .dialog-body > header h2 {
+    font-size: 15px;
+  }
+  .switcher-search {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    padding-left: 14px;
+    color: var(--color-muted);
+  }
+  .switcher-search input {
+    flex: 1;
+    min-width: 0;
+    border: 0 !important;
+    background: transparent;
+    min-height: 46px !important;
+  }
+  .switcher-search:focus-within {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  .switcher-search input:focus-visible {
+    outline: 0;
+  }
+  .switcher-caption {
+    font-size: 12px;
+    color: var(--color-muted);
+    margin: 20px 10px 8px;
+  }
+  .switcher-results > button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    text-align: left;
+    padding: 11px 12px;
+    border-radius: 6px;
+    color: var(--color-muted);
+  }
+  .switcher-results > button:hover,
+  .switcher-results > button:focus-visible {
+    background: var(--color-subtle);
+  }
+  .switcher-results > button[aria-current='page'] {
+    background: var(--color-primary-soft);
+  }
+  .switcher-results strong {
+    display: block;
+    font-size: 13px;
+    color: var(--color-heading);
+    font-weight: 600;
+  }
+  .switcher-results small {
+    display: block;
+    font-size: 12px;
+    margin-top: 3px;
+  }
+  .switcher-help {
+    display: flex;
+    gap: 18px;
+    padding: 16px 10px 0;
+    margin-top: 12px;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-muted);
+    font-size: 11px;
+  }
+  .switcher-help > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .switcher-empty {
+    color: var(--color-muted);
+    padding: 20px 12px;
+    font-size: 13px;
+  }
+  .evidence-display .control-popover-body {
+    width: 270px;
+  }
+  .evidence-display label {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--color-body);
+  }
+  .evidence-fold-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+  }
+  @media (max-width: 639px) {
+    .quick-switch-trigger {
+      width: 30px;
+      justify-content: center;
+      padding-inline: 0;
+    }
+    .quick-switch-trigger > span,
+    .quick-switch-trigger kbd {
+      display: none;
+    }
+    .workspace-preferences > summary {
+      padding-inline: 5px;
+    }
+    .control-popover-body {
+      width: 280px;
+    }
+    .switcher-help {
+      gap: 12px;
+    }
+  }
+}
