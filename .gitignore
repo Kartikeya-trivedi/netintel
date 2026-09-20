@@ -49,3 +49,12 @@ npm-debug.log*
 # TypeScript composite build output
 frontend/vite.config.d.ts
 frontend/*.tsbuildinfo
+
+# YOLO weights. Downloaded on first use and cached by ultralytics; 6MB of
+# binary that the lockfile already pins the source of.
+backend/yolov8n.pt
+*.pt
+
+# Launch-video output: rendered mp4s, extracted frames, and the Hyperframes
+# project that builds them. Regenerable, and large.
+brag-output/

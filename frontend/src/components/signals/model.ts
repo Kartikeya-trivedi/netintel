@@ -1,7 +1,7 @@
 import type { Alert } from '../../api/types'
 
 export const SIGNAL_TYPES: Record<string, string> = {
-  TRANSACTION_SPIKE: 'Transaction spike', STRUCTURING: 'Split transfers',
+  TRANSACTION_SPIKE: 'Transaction spike', STRUCTURING: 'Split transfers', CCTV_SIGHTING: 'Camera sighting',
   COMM_BURST: 'Call burst', NEW_LINK: 'New connection', HIGH_CENTRALITY_SHIFT: 'Network shift',
 }
 

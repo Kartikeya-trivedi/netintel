@@ -6,6 +6,7 @@ export const NAVIGATION = [
   { to: '/dashboard', label: 'Overview', group: 'Case files' },
   { to: '/graph', label: 'Network', group: 'Case files' },
   { to: '/documents', label: 'Sources', group: 'Case files' },
+  { to: '/vision', label: 'Camera', group: 'Case files' },
   { to: '/alerts', label: 'Signals', group: 'Case files' },
 ]
 

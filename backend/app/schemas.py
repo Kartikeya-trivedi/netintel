@@ -182,3 +182,38 @@ class SearchHit(BaseModel):
     id: int
     label: str
     detail: str | None = None
+
+# --- Vision (CCTV stills and uploaded video) ---------------------------------
+
+
+class VisionFrameOut(ORMModel):
+    id: int
+    frame_index: int
+    timestamp_sec: float
+    detections: list[dict]
+
+
+class VisionRunOut(ORMModel):
+    id: int
+    case_id: int
+    source_kind: str
+    source_ref: str
+    engine: str
+    status: str
+    error: str | None
+    frame_count: int
+    detection_count: int
+    clues: list[dict]
+    summary: dict
+    created_at: datetime
+
+
+class VisionRunDetail(VisionRunOut):
+    frames: list[VisionFrameOut]
+
+
+class CameraGrab(BaseModel):
+    """A camera to read. `frames` is clamped server-side."""
+
+    url: str
+    frames: int = 4

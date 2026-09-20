@@ -35,6 +35,8 @@ dependencies = [
     # Ed25519 signatures on exported finding packages. An established library,
     # never hand-rolled primitives.
     "cryptography>=43",
+    "opencv-python-headless>=5.0.0.93",
+    "ultralytics>=8.4.156",
 ]
 
 [tool.uv.sources]
